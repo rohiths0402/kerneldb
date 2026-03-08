@@ -1,4 +1,4 @@
-KernelDB
+# KernelDB
 
 A production-grade embedded database engine built from scratch in C.
 KernelDB is an ongoing systems programming project that implements core database internals — WAL-based crash recovery, B+Tree indexing, slotted page storage, and a signal-safe control plane — without relying on any external database libraries.
