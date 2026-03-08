@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,11 +8,13 @@
 #include <unistd.h>
 #include <errno.h>
 
-#include "repl.h"
+#include "reph.h"
 #include "command.h"
 #include "dispatcher.h"
 
-#define _POSIX_C_SOURCE 200809L
+#define POLL_TIMEOUT_MS  200
+#define REPL_PROMPT      "kerneldb> "
+#define REPL_VERSION     "KernelDB v0.1 — Layer 1: Control Plane"
 
 static volatile sig_atomic_t g_interrupted = 0; 
 static volatile sig_atomic_t g_quit        = 0;
