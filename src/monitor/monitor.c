@@ -9,7 +9,7 @@
 #include <time.h>
 
 #include "monitor.h"
-#include "reph.h"
+#include "../src/reph/reph.h"
 
 static atomic_int g_stop = 0;
 
