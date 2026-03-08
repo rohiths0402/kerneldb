@@ -98,5 +98,6 @@ This project was built alongside hands-on experience contributing to a PostgreSQ
 Author
 Rohith S
 
-GitHub: @rohiths0402
-LinkedIn: Rohith S
+GitHub: [@rohiths0402](https://github.com/rohiths0402)
+LinkedIn: [Rohith S](https://www.linkedin.com/in/rohith-s-5b8690213/)
+Portfolio: https://rohithsportfolio.vercel.app/
