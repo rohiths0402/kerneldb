@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <stdatomic.h>
 #include <time.h>
-
 #include "monitor.h"
 #include "reph.h"
 

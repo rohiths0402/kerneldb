@@ -5,14 +5,18 @@ SRC_DIR := src
 BIN     := kerneldb
 
 SRCS := main.c \
-        $(SRC_DIR)/reph/reph.c \
-        $(SRC_DIR)/dispatcher/dispatcher.c \
-        $(SRC_DIR)/monitor/monitor.c
+        src/reph/reph.c \
+        src/dispatcher/dispatcher.c \
+        src/monitor/monitor.c \
+        src/Parser/lexer/lexer.c \
+        src/Parser/parser.c
 
-INCLUDES := -I$(SRC_DIR)/reph \
-            -I$(SRC_DIR)/dispatcher \
-            -I$(SRC_DIR)/monitor \
-            -I$(SRC_DIR)/common
+INCLUDES := -Isrc/reph \
+            -Isrc/dispatcher \
+            -Isrc/monitor \
+            -Isrc/common \
+            -Isrc/Parser \
+            -Isrc/Parser/lexer
 
 all: $(BIN)
 

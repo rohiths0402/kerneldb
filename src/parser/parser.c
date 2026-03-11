@@ -5,7 +5,7 @@
 #include <stdlib.h>
 
 #include "parser.h"
-#include "lexer.h"
+#include "lexer/lexer.h"
 #include "../common/intent.h"
 
 typedef struct {
