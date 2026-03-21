@@ -1,7 +1,7 @@
 #ifndef BUFFER_H
 #define BUFFER_H
 #include <stdint.h>
-#include "page.h"
+#include "../page/page.h"
 #define BUFFER_POOL_SIZE  7
 #define INVALID_PAGE_ID   UINT32_MAX
 

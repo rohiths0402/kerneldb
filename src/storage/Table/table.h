@@ -2,7 +2,7 @@
 #define TABLE_H
 
 #include <stdint.h>
-#include "buffer.h"
+#include "../buffer/buffer.h"
 #include "../page/page.h"
 #include "../common/intent.h"
 
