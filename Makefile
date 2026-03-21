@@ -9,14 +9,18 @@ SRCS := main.c \
         src/dispatcher/dispatcher.c \
         src/monitor/monitor.c \
         src/Parser/lexer/lexer.c \
-        src/Parser/parser.c
+        src/Parser/parser.c \
+        src/storage/page/page.c \
+        src/storage/buffer/buffer.c \
+        src/storage/Table/table.c
 
 INCLUDES := -Isrc/reph \
             -Isrc/dispatcher \
             -Isrc/monitor \
             -Isrc/common \
             -Isrc/Parser \
-            -Isrc/Parser/lexer
+            -Isrc/Parser/lexer \
+            -Isrc/storage
 
 all: $(BIN)
 
