@@ -106,8 +106,7 @@ static int row_matches_where(const uint8_t *row_data,
     return strcmp(tok, intent->where.value) == 0;
 }
 
-static void get_col_value(const uint8_t *row_data, int col_idx,
-                           char *out, size_t out_size) {
+static void get_col_value(const uint8_t *row_data, int col_idx, char *out, size_t out_size) {
     char tmp[MAX_VALUE_LEN * MAX_COLUMNS];
     strncpy(tmp, (const char *)row_data, sizeof(tmp) - 1);
 
@@ -123,7 +122,7 @@ static void get_col_value(const uint8_t *row_data, int col_idx,
 
 static int find_index_col(const Table *table) {
     for (int i = 0; i < table->col_count; i++) {
-        if (strcasecmp(table->col_defs[i].type, "INT") == 0)
+        if (strcmp(table->col_defs[i].type, "INT") == 0)
             return i;
     }
     return 0;
