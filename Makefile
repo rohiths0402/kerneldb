@@ -13,7 +13,7 @@ SRCS := main.c \
         src/storage/page/page.c \
         src/storage/buffer/buffer.c \
         src/storage/Table/table.c \
-        src/index/index.c
+        src/index/index.c \
         src/wal/wal.c \
 
 INCLUDES := -Isrc/reph \

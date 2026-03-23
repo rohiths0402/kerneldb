@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "reph.h"
 #include "table.h"
 #include "../WAL/wal.h"
