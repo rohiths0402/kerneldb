@@ -14,6 +14,7 @@ SRCS := main.c \
         src/storage/buffer/buffer.c \
         src/storage/Table/table.c \
         src/index/index.c
+        src/wal/wal.c \
 
 INCLUDES := -Isrc/reph \
             -Isrc/dispatcher \
@@ -25,7 +26,8 @@ INCLUDES := -Isrc/reph \
             -Isrc/storage/page \
             -Isrc/storage/buffer \
             -Isrc/storage/Table \
-            -Isrc/index
+            -Isrc/index \
+            -Isrc/wal \
 
 all: $(BIN)
 
