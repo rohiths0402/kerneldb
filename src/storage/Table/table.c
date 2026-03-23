@@ -7,7 +7,6 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <errno.h>
-
 #include "table.h"
 #include "page.h"
 #include "buffer.h"
