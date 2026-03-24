@@ -41,4 +41,4 @@ echo "--- Step 3: Restart — WAL should recover all rows ---"
 echo -e "SELECT * FROM students\n.exit" | ./kerneldb
 
 echo ""
-echo "=== Test Complete ==="
+echo "=== Test Complete ==="   
