@@ -5,8 +5,8 @@
 
 typedef struct {
     pthread_rwlock_t lock;
-    int              readers;
-    int              writers;
+    int readers;
+    int writers;
 } RWLock;
 
 typedef enum {
