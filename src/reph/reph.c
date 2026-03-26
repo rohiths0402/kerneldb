@@ -87,8 +87,7 @@ void repl_run(void) {
     "  show db     List databases\n"
     "\n"
     "SQL:\n"
-    "  SELECT ...\n"
-    "  INSERT ...\n\n"
+    
 );
 
 while (!g_quit) {
