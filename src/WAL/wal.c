@@ -155,7 +155,7 @@ WALResult wal_recover(WAL *wal) {
     while (read_record(wal->fd, &rec) == WAL_OK) {
         if (count < 1024)
             records[count++] = rec;
-    }
+    } 
     if (count == 0) {
         printf("  [wal] No records found — clean start\n\n");
         lseek(wal->fd, 0, SEEK_END);
@@ -206,6 +206,11 @@ WALResult wal_recover(WAL *wal) {
 
     /* Seek to end for appending new records */
     lseek(wal->fd, 0, SEEK_END);
+    ftruncate(wal->fd, 0);
+    lseek(wal->fd, 0, SEEK_SET);
+    wal->next_lsn = 1;
+    wal->next_txn = 1;
+    printf("  [wal] Checkpoint — WAL truncated after recovery\n\n");
     return WAL_OK;
 }
 

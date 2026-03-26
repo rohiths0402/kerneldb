@@ -1,6 +1,6 @@
 CC      := gcc
 CFLAGS  := -std=c17 -Wall -Wextra
-LDFLAGS := -lpthread
+LDFLAGS := -lpthread -luring    
 SRC_DIR := src
 BIN     := kerneldb
 
@@ -15,6 +15,9 @@ SRCS := main.c \
         src/storage/Table/table.c \
         src/index/index.c \
         src/wal/wal.c \
+        src/concurrency/rwlock.c \
+        src/io/aio.c \
+
 
 INCLUDES := -Isrc/reph \
             -Isrc/dispatcher \
@@ -28,6 +31,8 @@ INCLUDES := -Isrc/reph \
             -Isrc/storage/Table \
             -Isrc/index \
             -Isrc/wal \
+            -Isrc/concurrency \
+            -Isrc/io \
 
 all: $(BIN)
 

@@ -1,6 +1,6 @@
 #ifndef AIO_H
 #define AIO_H
-
+#define AIO_QUEUE_DEPTH 64
 #include <stdint.h>
 #include <liburing.h>
 
