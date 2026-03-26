@@ -234,14 +234,16 @@ TableResult table_insert(Table *table, const Intent *intent) {
         if (!frame) continue;
 
         uint16_t slot_out;
-        if (page_insert(frame->page, row_buf, row_len, &slot_out) == PAGE_OK) {
-            buf_mark_dirty(frame);
+        rwlock_write_lock(&frame->lock);
+        PageResult pr = page_insert(frame->page, row_buf, row_len, &slot_out);
+        rwlock_write_unlock(&frame->lock);
 
+        if (pr == PAGE_OK) {
+            buf_mark_dirty(frame);
             char key_str[MAX_VALUE_LEN];
             get_col_value(row_buf, table->index_col, key_str, sizeof(key_str));
             RowLocation loc = { .page_id = pid, .slot_id = slot_out };
             INDEX_insert(table->index, atoi(key_str), loc);
-
             printf("  [table] Inserted into \"%s\" page=%u slot=%u\n\n", table->name, pid, slot_out);
             return TABLE_OK;
         }
@@ -250,10 +252,15 @@ TableResult table_insert(Table *table, const Intent *intent) {
     uint32_t    new_pid = table->page_count;
     BufferFrame *frame  = buf_new_page(&table->pool, new_pid);
     if (!frame) return TABLE_ERROR;
+
     uint16_t slot_out;
+    rwlock_write_lock(&frame->lock);
     page_insert(frame->page, row_buf, row_len, &slot_out);
+    rwlock_write_unlock(&frame->lock);
+
     buf_mark_dirty(frame);
     table->page_count++;
+
     char key_str[MAX_VALUE_LEN];
     get_col_value(row_buf, table->index_col, key_str, sizeof(key_str));
     RowLocation loc = { .page_id = new_pid, .slot_id = slot_out };
@@ -265,7 +272,7 @@ TableResult table_insert(Table *table, const Intent *intent) {
 void table_scan(Table *table, const Intent *intent) {
     uint8_t  buf[PAGE_SIZE];
     uint16_t len;
-    int      found = 0;
+    int found = 0;
 
     printf("\n  ");
     for (int c = 0; c < table->col_count; c++)
@@ -275,22 +282,25 @@ void table_scan(Table *table, const Intent *intent) {
         printf("%-16s", "----------------");
     printf("\n");
 
-    if (intent->where.active && strcmp(table->col_defs[table->index_col].name,intent->where.column) == 0) {
-
+    if (intent->where.active && strcmp(table->col_defs[table->index_col].name, intent->where.column) == 0) {
         int key = atoi(intent->where.value);
         RowLocation loc;
 
         if (INDEX_search(table->index, key, &loc) == INDEX_OK) {
             BufferFrame *frame = buf_pin(&table->pool, loc.page_id);
-            if (frame &&
-                page_read(frame->page, loc.slot_id, buf, sizeof(buf), &len) == PAGE_OK) {
-                char tmp[PAGE_SIZE];
-                strncpy(tmp, (char *)buf, sizeof(tmp) - 1);
-                printf("  ");
-                char *tok = strtok(tmp, "|");
-                while (tok) { printf("%-16s", tok); tok = strtok(NULL, "|"); }
-                printf("\n");
-                found++;
+            if (frame) {
+                rwlock_read_lock(&frame->lock);
+                PageResult pr = page_read(frame->page, loc.slot_id, buf, sizeof(buf), &len);
+                rwlock_read_unlock(&frame->lock);
+                if (pr == PAGE_OK) {
+                    char tmp[PAGE_SIZE];
+                    strncpy(tmp, (char *)buf, sizeof(tmp) - 1);
+                    printf("  ");
+                    char *tok = strtok(tmp, "|");
+                    while (tok) { printf("%-16s", tok); tok = strtok(NULL, "|"); }
+                    printf("\n");
+                    found++;
+                }
             }
         }
         printf("\n  %d row(s) found  [index lookup]\n\n", found);
@@ -302,10 +312,11 @@ void table_scan(Table *table, const Intent *intent) {
         if (!frame) continue;
         PageHeader *hdr = (PageHeader *)frame->page->data;
         for (uint16_t s = 0; s < hdr->slot_count; s++) {
-            if (page_read(frame->page, s, buf, sizeof(buf), &len) != PAGE_OK)
-                continue;
-            if (!row_matches_where(buf, intent, table))
-                continue;
+            rwlock_read_lock(&frame->lock);
+            PageResult pr = page_read(frame->page, s, buf, sizeof(buf), &len);
+            rwlock_read_unlock(&frame->lock);
+            if (pr != PAGE_OK) continue;
+            if (!row_matches_where(buf, intent, table)) continue;
             char tmp[PAGE_SIZE];
             strncpy(tmp, (char *)buf, sizeof(tmp) - 1);
             printf("  ");
@@ -322,18 +333,17 @@ TableResult table_delete(Table *table, const Intent *intent) {
     uint8_t  buf[PAGE_SIZE];
     uint16_t len;
     int deleted = 0;
-
     for (uint32_t pid = 0; pid < table->page_count; pid++) {
         BufferFrame *frame = buf_pin(&table->pool, pid);
         if (!frame) continue;
-
         PageHeader *hdr = (PageHeader *)frame->page->data;
         uint16_t original_count = hdr->slot_count;
         for (uint16_t s = 0; s < original_count; s++) {
-            if (page_read(frame->page, s, buf, sizeof(buf), &len) != PAGE_OK)
-                continue;
-            if (!row_matches_where(buf, intent, table))
-                continue;
+            rwlock_read_lock(&frame->lock);
+            PageResult pr = page_read(frame->page, s, buf, sizeof(buf), &len);
+            rwlock_read_unlock(&frame->lock);
+            if (pr != PAGE_OK) continue;
+            if (!row_matches_where(buf, intent, table)) continue;
 
             /* WAL: log before delete */
             if (g_wal) {
@@ -345,7 +355,9 @@ TableResult table_delete(Table *table, const Intent *intent) {
             char key_str[MAX_VALUE_LEN];
             get_col_value(buf, table->index_col, key_str, sizeof(key_str));
             INDEX_delete(table->index, atoi(key_str));
+            rwlock_write_lock(&frame->lock);
             page_delete(frame->page, s);
+            rwlock_write_unlock(&frame->lock);
             buf_mark_dirty(frame);
             deleted++;
         }
@@ -365,10 +377,12 @@ TableResult table_update(Table *table, const Intent *intent) {
         PageHeader *hdr = (PageHeader *)frame->page->data;
         uint16_t original_count = hdr->slot_count;
         for (uint16_t s = 0; s < original_count; s++) {
-            if (page_read(frame->page, s, buf, sizeof(buf), &len) != PAGE_OK)
-                continue;
-            if (!row_matches_where(buf, intent, table))
-                continue;
+            rwlock_read_lock(&frame->lock);
+            PageResult pr = page_read(frame->page, s, buf, sizeof(buf), &len);
+            rwlock_read_unlock(&frame->lock);
+            if (pr != PAGE_OK) continue;
+            if (!row_matches_where(buf, intent, table)) continue;
+
             int col_idx = -1;
             for (int c = 0; c < table->col_count; c++) {
                 if (strcmp(table->col_defs[c].name, intent->set.column) == 0) {
@@ -376,16 +390,16 @@ TableResult table_update(Table *table, const Intent *intent) {
                 }
             }
             if (col_idx < 0) continue;
+
             char old_key_str[MAX_VALUE_LEN];
             get_col_value(buf, table->index_col, old_key_str, sizeof(old_key_str));
             INDEX_delete(table->index, atoi(old_key_str));
             char tmp[PAGE_SIZE];
             strncpy(tmp, (char *)buf, sizeof(tmp) - 1);
             char new_row[PAGE_SIZE];
-            int  pos = 0;
+            int pos = 0;
             char *tok = strtok(tmp, "|");
-            int   ci  = 0;
-
+            int ci  = 0;
             while (tok) {
                 if (ci > 0) new_row[pos++] = '|';
                 const char *val = (ci == col_idx) ? intent->set.value : tok;
@@ -394,8 +408,6 @@ TableResult table_update(Table *table, const Intent *intent) {
                 ci++;
             }
             new_row[pos++] = '\0';
-
-            /* WAL: log before update */
             if (g_wal) {
                 uint32_t txn_id;
                 wal_begin(g_wal, &txn_id);
@@ -403,16 +415,16 @@ TableResult table_update(Table *table, const Intent *intent) {
                 wal_commit(g_wal, txn_id);
             }
 
+            rwlock_write_lock(&frame->lock);
             page_delete(frame->page, s);
             uint16_t new_slot;
             page_insert(frame->page, (uint8_t *)new_row, (uint16_t)pos, &new_slot);
+            rwlock_write_unlock(&frame->lock);
             buf_mark_dirty(frame);
-
             char new_key_str[MAX_VALUE_LEN];
             get_col_value((uint8_t *)new_row, table->index_col, new_key_str, sizeof(new_key_str));
-            RowLocation loc = { .page_id = pid, .slot_id = new_slot };
-            INDEX_insert(table->index, atoi(new_key_str), loc);
-
+            RowLocation loc2 = { .page_id = pid, .slot_id = new_slot };
+            INDEX_insert(table->index, atoi(new_key_str), loc2);
             updated++;
         }
     }

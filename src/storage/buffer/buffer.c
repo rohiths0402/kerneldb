@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include "buffer.h"
 #include "../page/page.h"
+#include "../concurrency/rwlock.h"
 
 static int find_frame(const BufferPool *pool, uint32_t page_id) {
     for (int i = 0; i < BUFFER_POOL_SIZE; i++) {
@@ -112,6 +113,8 @@ BufferFrame *buf_pin(BufferPool *pool, uint32_t page_id) {
     pool->frames[slot].page_id  = page_id;
     pool->frames[slot].dirty    = 0;
     pool->frames[slot].lru_rank = pool->clock++;
+
+    rwlock_init(&pool->frames[slot].lock);
 
     return &pool->frames[slot];
 }
