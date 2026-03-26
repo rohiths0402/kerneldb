@@ -7,17 +7,20 @@
 #include <poll.h>
 #include <unistd.h>
 #include <errno.h>
-
 #include "reph.h"
 #include "command.h"
 #include "dispatcher.h"
-
-#define POLL_TIMEOUT_MS  200
-#define REPL_PROMPT      "kerneldb> "
-#define REPL_VERSION     "KernelDB v0.1 — Layer 1: Control Plane"
+#define POLL_TIMEOUT_MS 200
+#define REPL_PROMPT "kerneldb> "
+#define REPL_VERSION "KernelDB v0.1 — Layer 1: Control Plane"
 
 static volatile sig_atomic_t g_interrupted = 0; 
-static volatile sig_atomic_t g_quit        = 0;
+static volatile sig_atomic_t g_quit = 0;
+
+int show_prompt = 1;
+char query[1024] = {0};
+char line[256];
+
 
 static void handle_sigint(int sig) {
     (void)sig;
@@ -66,10 +69,10 @@ static int read_input(char *buf, size_t bufsize) {
     return 1;
 }
 
-static void print_prompt(void) {
-    printf("kerneldb> ");
-    fflush(stdout);
-}
+// static void print_prompt(void) {
+//     printf("kerneldb> ");
+//     fflush(stdout);
+// }
 
 void repl_run(void) {
     setup_signals();
@@ -87,25 +90,66 @@ void repl_run(void) {
     "  SELECT ...\n"
     "  INSERT ...\n\n"
 );
-    while (!g_quit) {
-        print_prompt();
-        int status;
-        do {
-            status = read_input(cmd.raw, sizeof(cmd.raw));
 
-            if (g_interrupted) {
-                g_interrupted = 0;
-                printf("\n  (Interrupted. Type .exit to quit.)\n\n");
-                print_prompt();
-            }
+while (!g_quit) {
 
-        } while (status == 0);
+    if (show_prompt) {
+        if (strlen(query) == 0)
+            printf("kerneldb> ");
+        else
+            printf("... ");
 
-        if (status < 0) {
-            printf("\nBye.\n");
-            break;
-        }
+        fflush(stdout);
+        show_prompt = 0;
+    }
+    int status = read_input(line, sizeof(line));
+    if (status == 0) {
+        continue;
+    }
+    if (g_interrupted) {
+        g_interrupted = 0;
+        printf("\n  (Interrupted. Type .exit to quit.)\n\n");
+        query[0] = '\0';
+        show_prompt = 1;
+        continue;
+    }
 
+    if (status < 0) {
+        printf("\nBye.\n");
+        break;
+    }
+
+    // trim newline
+line[strcspn(line, "\n")] = 0;
+
+// 🔥 handle meta commands immediately
+if (line[0] == '.' ||
+    strncasecmp(line, "show db", 7) == 0 ||
+    strncasecmp(line, "showdb", 6) == 0) {
+
+    strncpy(cmd.raw, line, sizeof(cmd.raw) - 1);
+    cmd.raw[sizeof(cmd.raw) - 1] = '\0';
+
+    cmd.type = CMD_UNKNOWN;
+    cmd.args = NULL;
+
+    ExecResult result = dispatch(&cmd);
+
+    if (result == EXEC_EXIT) {
+        printf("Bye.\n");
+        g_quit = 1;
+    }
+
+    show_prompt = 1;
+    continue;
+}
+    strncat(query, line, sizeof(query) - strlen(query) - 1);
+    show_prompt = 1;
+    if (strchr(line, ';')) {
+        char *semi = strchr(query, ';');
+        if (semi) *semi = '\0';
+        strncpy(cmd.raw, query, sizeof(cmd.raw) - 1);
+        cmd.raw[sizeof(cmd.raw) - 1] = '\0';
         cmd.type = CMD_UNKNOWN;
         cmd.args = NULL;
         ExecResult result = dispatch(&cmd);
@@ -113,5 +157,8 @@ void repl_run(void) {
             printf("Bye.\n");
             g_quit = 1;
         }
+        query[0] = '\0';
+        show_prompt = 1;
     }
+}
 }
