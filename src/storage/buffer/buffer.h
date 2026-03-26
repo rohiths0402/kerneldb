@@ -2,7 +2,7 @@
 #define BUFFER_H
 #include <stdint.h>
 #include "../page/page.h"
-#include "../WAL/wal.h"
+#include "../concurrency/rwlock.h"
 #define BUFFER_POOL_SIZE  7
 #define INVALID_PAGE_ID   UINT32_MAX
 
@@ -11,6 +11,7 @@ typedef struct {
     uint32_t page_id;
     int dirty;
     uint64_t lru_rank;
+    RWLock  lock; 
 } BufferFrame;
 
 typedef struct {
@@ -24,14 +25,6 @@ typedef enum {
     BUF_ERROR,
     BUF_NOT_FOUND
 } BufResult;
-
-typedef struct {
-    Page *page;
-    uint32_t page_id;
-    int dirty;
-    uint64_t lru_rank;
-    RWLock  lock; 
-} BufferFrame;
 
 void buf_init(BufferPool *pool, int table_fd);
 

@@ -1,6 +1,8 @@
 #ifndef RWLOCK_H
 #define RWLOCK_H
 
+#define _XOPEN_SOURCE 700
+
 #include <pthread.h>
 
 typedef struct {

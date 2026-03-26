@@ -67,15 +67,26 @@ static int read_input(char *buf, size_t bufsize) {
 }
 
 static void print_prompt(void) {
-    printf("mydb> ");
+    printf("kerneldb> ");
     fflush(stdout);
 }
 
 void repl_run(void) {
     setup_signals();
     Command cmd;
-    printf("\n  mydb v0.1 — Layer 1: Control Plane\n");
-    printf("  Type .help for commands, .exit to quit.\n\n");
+    printf("\n  kerneldb v0.1 — Embedded DB Engine\n");
+    printf(
+    "Meta Commands:\n"
+    "  .help       Show help\n"
+    "  .exit       Exit\n"
+    "\n"
+    "Database:\n"
+    "  show db     List databases\n"
+    "\n"
+    "SQL:\n"
+    "  SELECT ...\n"
+    "  INSERT ...\n\n"
+);
     while (!g_quit) {
         print_prompt();
         int status;

@@ -1,5 +1,5 @@
 CC      := gcc
-CFLAGS  := -std=c17 -Wall -Wextra
+CFLAGS  := -std=c17 -D_GNU_SOURCE -Wall -Wextra
 LDFLAGS := -lpthread -luring    
 SRC_DIR := src
 BIN     := kerneldb
