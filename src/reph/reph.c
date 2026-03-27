@@ -17,11 +17,6 @@
 static volatile sig_atomic_t g_interrupted = 0; 
 static volatile sig_atomic_t g_quit = 0;
 
-int show_prompt = 1;
-char query[1024] = {0};
-char line[256];
-
-
 static void handle_sigint(int sig) {
     (void)sig;
     g_interrupted = 1;
@@ -41,11 +36,9 @@ static void setup_signals(void) {
     sigaction(SIGTERM, &sa, NULL);
 }
 
-#define POLL_TIMEOUT_MS 200
-
 static int read_input(char *buf, size_t bufsize) {
     struct pollfd fds[1];
-    fds[0].fd     = STDIN_FILENO;
+    fds[0].fd = STDIN_FILENO;
     fds[0].events = POLLIN;
 
     int ready = poll(fds, 1, POLL_TIMEOUT_MS);
@@ -76,88 +69,109 @@ static int read_input(char *buf, size_t bufsize) {
 
 void repl_run(void) {
     setup_signals();
+
     Command cmd;
+
     printf("\n  kerneldb v0.1 — Embedded DB Engine\n");
-    printf(
-    "Meta Commands:\n"
-    "  .help       Show help\n"
-    "  .exit       Exit\n"
-    "\n"
-    "Database:\n"
-    "  show db     List databases\n"
-    "\n"
-    "SQL:\n"
-    
-);
 
-while (!g_quit) {
+    char query[1024] = {0};   // 🔥 move inside function
+    char line[256];
+    int show_prompt = 1;
 
-    if (show_prompt) {
-        if (strlen(query) == 0)
+    while (!g_quit) {
+
+        if (show_prompt) {
             printf("kerneldb> ");
-        else
-            printf("... ");
-
-        fflush(stdout);
-        show_prompt = 0;
-    }
-    int status = read_input(line, sizeof(line));
-    if (status == 0) {
-        continue;
-    }
-    if (g_interrupted) {
-        g_interrupted = 0;
-        printf("\n  (Interrupted. Type .exit to quit.)\n\n");
-        query[0] = '\0';
-        show_prompt = 1;
-        continue;
-    }
-
-    if (status < 0) {
-        printf("\nBye.\n");
-        break;
-    }
-
-    // trim newline
-line[strcspn(line, "\n")] = 0;
-
-// 🔥 handle meta commands immediately
-if (line[0] == '.' ||
-    strncasecmp(line, "show db", 7) == 0 ||
-    strncasecmp(line, "showdb", 6) == 0) {
-
-    strncpy(cmd.raw, line, sizeof(cmd.raw) - 1);
-    cmd.raw[sizeof(cmd.raw) - 1] = '\0';
-
-    cmd.type = CMD_UNKNOWN;
-    cmd.args = NULL;
-
-    ExecResult result = dispatch(&cmd);
-
-    if (result == EXEC_EXIT) {
-        printf("Bye.\n");
-        g_quit = 1;
-    }
-
-    show_prompt = 1;
-    continue;
-}
-    strncat(query, line, sizeof(query) - strlen(query) - 1);
-    show_prompt = 1;
-    if (strchr(line, ';')) {
-        char *semi = strchr(query, ';');
-        if (semi) *semi = '\0';
-        strncpy(cmd.raw, query, sizeof(cmd.raw) - 1);
-        cmd.raw[sizeof(cmd.raw) - 1] = '\0';
-        cmd.type = CMD_UNKNOWN;
-        cmd.args = NULL;
-        ExecResult result = dispatch(&cmd);
-        if (result == EXEC_EXIT) {
-            printf("Bye.\n");
-            g_quit = 1;
+            fflush(stdout);
+            show_prompt = 0;
         }
-        query[0] = '\0';
-        show_prompt = 1;
+
+        int status = read_input(line, sizeof(line));
+
+        if (status == 0) continue;
+
+        if (g_interrupted) {
+            g_interrupted = 0;
+            printf("\n  (Interrupted. Type .exit to quit.)\n\n");
+            query[0] = '\0';
+            show_prompt = 1;
+            continue;
+        }
+
+        if (status < 0) {
+            printf("\nBye.\n");
+            break;
+        }
+
+        // 🔥 ignore empty lines
+        if (strlen(line) == 0) {
+            show_prompt = 1;
+            continue;
+        }
+
+        // 🔥 META COMMANDS (no ;)
+        if (line[0] == '.' ||
+            strcasecmp(line, "show db") == 0 ||
+            strcasecmp(line, "showdb") == 0) {
+
+            strncpy(cmd.raw, line, sizeof(cmd.raw) - 1);
+            cmd.raw[sizeof(cmd.raw) - 1] = '\0';
+
+            cmd.type = CMD_UNKNOWN;
+            cmd.args = NULL;
+
+            ExecResult result = dispatch(&cmd);
+
+            if (result == EXEC_EXIT) {
+                printf("Bye.\n");
+                g_quit = 1;
+            }
+
+            show_prompt = 1;
+            continue;
+        }
+
+        // 🔥 INVALID COMMAND CHECK
+        if (strlen(query) == 0 && strchr(line, ';') == NULL) {
+
+            if (strncasecmp(line, "SELECT", 6) != 0 &&
+                strncasecmp(line, "INSERT", 6) != 0 &&
+                strncasecmp(line, "UPDATE", 6) != 0 &&
+                strncasecmp(line, "DELETE", 6) != 0 &&
+                strncasecmp(line, "CREATE", 6) != 0 &&
+                strncasecmp(line, "DROP", 4) != 0 &&
+                strncasecmp(line, "USE", 3) != 0) {
+
+                printf("  Unrecognized command: [%s]\n\n", line);
+                show_prompt = 1;
+                continue;
+            }
+        }
+
+        // 🔥 append query
+        strncat(query, line, sizeof(query) - strlen(query) - 1);
+
+        // 🔥 execute only when ';'
+        if (strchr(line, ';')) {
+
+            char *semi = strchr(query, ';');
+            if (semi) *semi = '\0';
+
+            strncpy(cmd.raw, query, sizeof(cmd.raw) - 1);
+            cmd.raw[sizeof(cmd.raw) - 1] = '\0';
+
+            cmd.type = CMD_UNKNOWN;
+            cmd.args = NULL;
+
+            ExecResult result = dispatch(&cmd);
+
+            if (result == EXEC_EXIT) {
+                printf("Bye.\n");
+                g_quit = 1;
+            }
+
+            query[0] = '\0';
+            show_prompt = 1;
+        }
     }
-}
 }

@@ -14,38 +14,56 @@
 #include "../WAL/wal.h"
 #include "../common/intent.h"
 
-#define CATALOG_FILE  "data/catalog.db"
+// #define CATALOG_FILE  "data/catalog.db"
 
+char current_db[64] = "default";
 extern WAL *g_wal;
+
 static void data_path(const char *name, char *out, size_t size) {
-    snprintf(out, size, "data/%s.db", name);
+    snprintf(out, size, "data/%s/%s.db", current_db, name);
+}
+
+static void catalog_path(char *out, size_t size) {
+    snprintf(out, size, "data/%s/catalog.db", current_db);
 }
 
 static void schema_path(const char *name, char *out, size_t size) {
-    snprintf(out, size, "data/%s.schema", name);
+    snprintf(out, size, "data/%s/%s.schema", current_db, name);
 }
 
 static void catalog_add(const char *name) {
-    FILE *f = fopen(CATALOG_FILE, "a");
+    char path[256];
+    catalog_path(path, sizeof(path));
+    FILE *f = fopen(path, "a");
     if (!f) return;
     fprintf(f, "%s\n", name);
     fclose(f);
 }
 
 static void catalog_remove(const char *name) {
-    FILE *f = fopen(CATALOG_FILE, "r");
+    char path[256];
+    catalog_path(path, sizeof(path));
+
+    FILE *f = fopen(path, "r");
     if (!f) return;
-    FILE *tmp = fopen("data/catalog.tmp", "w");
+
+    char tmp_path[256];
+    snprintf(tmp_path, sizeof(tmp_path), "data/%s/catalog.tmp", current_db);
+
+    FILE *tmp = fopen(tmp_path, "w");
     if (!tmp) { fclose(f); return; }
+
     char line[MAX_TABLE_NAME];
     while (fgets(line, sizeof(line), f)) {
         line[strcspn(line, "\n")] = 0;
         if (strcmp(line, name) != 0)
             fprintf(tmp, "%s\n", line);
     }
+
     fclose(f);
     fclose(tmp);
-    rename("data/catalog.tmp", CATALOG_FILE);
+
+    rename(tmp_path, path);
 }
 
 static int save_schema(const char *name, const ColumnDef *cols, int count) {
@@ -125,8 +143,15 @@ static int find_index_col(const Table *table) {
 
 void table_subsystem_init(void) {
     struct stat st;
+
     if (stat("data", &st) != 0)
         mkdir("data", 0755);
+
+    char db_path[128];
+    snprintf(db_path, sizeof(db_path), "data/%s", current_db);
+
+    if (stat(db_path, &st) != 0)
+        mkdir(db_path, 0755);
 }
 
 int table_exists(const char *name) {
@@ -249,7 +274,7 @@ TableResult table_insert(Table *table, const Intent *intent) {
         }
     }
 
-    uint32_t    new_pid = table->page_count;
+    uint32_t new_pid = table->page_count;
     BufferFrame *frame  = buf_new_page(&table->pool, new_pid);
     if (!frame) return TABLE_ERROR;
 
