@@ -3,6 +3,7 @@
 #include <sys/stat.h>
 #include <string.h>
 #include <ctype.h>
+#include <dirent.h>
 #include "dispatcher.h"
 #include "command.h"
 #include "parser.h"
@@ -30,18 +31,32 @@ static ExecResult handle_show_db(void) {
     printf("  %-20s  %s\n", "Name", "Status");
     printf("  %-20s  %s\n", "--------------------", "------");
 
-
-    struct stat st;
-    if (stat("data", &st) != 0) {
+    DIR *dir = opendir("data");
+    if (!dir) {
         printf("  (no databases yet)\n\n");
         return EXEC_SUCCESS;
     }
 
-    system("ls data");
+    struct dirent *entry;
+    int found = 0;
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_DIR) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0){
+                continue;
+            }
+            printf("  %-20s  online\n", entry->d_name);
+            found++;
+        }
+    }
+
+    closedir(dir);
+
+    if (!found)
+        printf("  (no databases yet)\n");
+
     printf("\n");
     return EXEC_SUCCESS;
-
-
 }
 
 static ExecResult handle_help(void) {

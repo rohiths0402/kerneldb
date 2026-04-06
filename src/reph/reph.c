@@ -14,6 +14,8 @@
 #define REPL_PROMPT "kerneldb> "
 #define REPL_VERSION "KernelDB v0.1 — Layer 1: Control Plane"
 
+extern char current_db[64];
+
 static volatile sig_atomic_t g_interrupted = 0; 
 static volatile sig_atomic_t g_quit = 0;
 
