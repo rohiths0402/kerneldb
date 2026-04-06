@@ -72,13 +72,17 @@ void repl_run(void) {
     printf("\n  kerneldb v0.1 — Embedded DB Engine\n");
 
     char query[1024] = {0};
-    char line[256];
+    char line[256]; 
     int show_prompt = 1;
 
     while (!g_quit) {
 
         if (show_prompt) {
-            printf("kerneldb> ");
+            if(strcmp(current_db , "default") == 0) {
+                printf("KernelDB> ");
+            } else {
+                printf("KernelDB[%s]> ", current_db);
+            }
             fflush(stdout);
             show_prompt = 0;
         }

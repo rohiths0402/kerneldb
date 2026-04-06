@@ -11,7 +11,7 @@ mkdir -p data
 
 # Build commands
 CMDS="CREATE TABLE students (id INT, name TEXT, mark INT)"
-for i in $(seq 1 20); do
+for i in $(seq 1 2000); do
     CMDS="$CMDS
 INSERT INTO students VALUES ($i, student$i, $((RANDOM % 100)))"
 done
