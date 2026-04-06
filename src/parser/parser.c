@@ -183,6 +183,26 @@ static ParseResult parse_delete(Parser *p, Intent *intent) {
 }
 
 static ParseResult parse_create(Parser *p, Intent *intent) {
+
+    // 🔥 CHECK DATABASE FIRST
+    if (check(p, TOKEN_IDENT) &&
+        strcasecmp(current(p)->value, "DATABASE") == 0) {
+
+        advance(p);  // consume DATABASE
+
+        intent->type = INTENT_CREATE_DB;
+
+        const Token *db = expect(p, TOKEN_IDENT);
+        if (!db) {
+            printf("  [parser] Error: expected database name\n");
+            return PARSE_ERROR;
+        }
+
+        strncpy(intent->db_name, db->value, MAX_NAME_LEN - 1);
+        return PARSE_OK;
+    }
+
+    // 🔥 OTHERWISE: CREATE TABLE
     intent->type = INTENT_CREATE_TABLE;
 
     if (!expect(p, TOKEN_TABLE)) {
@@ -213,6 +233,7 @@ static ParseResult parse_create(Parser *p, Intent *intent) {
         }
         if (check(p, TOKEN_COMMA)) advance(p);
     }
+
     expect(p, TOKEN_RPAREN);
     return PARSE_OK;
 }

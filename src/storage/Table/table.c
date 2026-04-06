@@ -13,10 +13,13 @@
 #include "index.h"
 #include "../WAL/wal.h"
 #include "../common/intent.h"
+#include "../dispatcher/dispatcher.h"
 
 // #define CATALOG_FILE  "data/catalog.db"
 
-char current_db[64] = "default";
+// char current_db[64] = "default";
+
+extern char current_db[64];
 extern WAL *g_wal;
 
 static void data_path(const char *name, char *out, size_t size) {

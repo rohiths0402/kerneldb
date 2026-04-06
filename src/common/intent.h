@@ -13,6 +13,8 @@ typedef enum {
     INTENT_DELETE,
     INTENT_CREATE_TABLE,
     INTENT_DROP_TABLE,
+    INTENT_CREATE_DB,
+    INTENT_USE_DB,
     INTENT_UNKNOWN
 } IntentType;
 
@@ -35,6 +37,7 @@ typedef struct {
 typedef struct {
     IntentType  type;
     char table[MAX_NAME_LEN];
+    char db_name[MAX_NAME_LEN];
     int select_all;
     char select_cols[MAX_COLUMNS][MAX_NAME_LEN];
     int select_col_count;

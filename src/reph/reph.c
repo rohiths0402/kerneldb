@@ -61,12 +61,7 @@ static int read_input(char *buf, size_t bufsize) {
 
     return 1;
 }
-
-// static void print_prompt(void) {
-//     printf("kerneldb> ");
-//     fflush(stdout);
-// }
-
+ 
 void repl_run(void) {
     setup_signals();
 
@@ -74,7 +69,7 @@ void repl_run(void) {
 
     printf("\n  kerneldb v0.1 — Embedded DB Engine\n");
 
-    char query[1024] = {0};   // 🔥 move inside function
+    char query[1024] = {0};
     char line[256];
     int show_prompt = 1;
 
@@ -102,14 +97,10 @@ void repl_run(void) {
             printf("\nBye.\n");
             break;
         }
-
-        // 🔥 ignore empty lines
         if (strlen(line) == 0) {
             show_prompt = 1;
             continue;
         }
-
-        // 🔥 META COMMANDS (no ;)
         if (line[0] == '.' ||
             strcasecmp(line, "show db") == 0 ||
             strcasecmp(line, "showdb") == 0) {
@@ -130,8 +121,6 @@ void repl_run(void) {
             show_prompt = 1;
             continue;
         }
-
-        // 🔥 INVALID COMMAND CHECK
         if (strlen(query) == 0 && strchr(line, ';') == NULL) {
 
             if (strncasecmp(line, "SELECT", 6) != 0 &&
@@ -147,11 +136,7 @@ void repl_run(void) {
                 continue;
             }
         }
-
-        // 🔥 append query
         strncat(query, line, sizeof(query) - strlen(query) - 1);
-
-        // 🔥 execute only when ';'
         if (strchr(line, ';')) {
 
             char *semi = strchr(query, ';');
