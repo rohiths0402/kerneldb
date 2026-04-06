@@ -1,9 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
-
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-
 #include "lexer.h"
 
 static const struct {
@@ -23,6 +21,7 @@ static const struct {
     { "SET",    TOKEN_SET    },
     { "VALUES", TOKEN_VALUES },
     { "AND",    TOKEN_AND    },
+    { "USE",    TOKEN_USE    },
     { NULL,     TOKEN_UNKNOWN }
 };
 

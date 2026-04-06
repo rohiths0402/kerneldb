@@ -1,9 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
-
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
 #include "parser.h"
 #include "lexer/lexer.h"
 #include "../common/intent.h"
@@ -270,6 +268,16 @@ ParseResult parse(const char *sql, Intent *intent) {
         case TOKEN_DELETE: return parse_delete(&p, intent);
         case TOKEN_CREATE: return parse_create(&p, intent);
         case TOKEN_DROP:   return parse_drop(&p, intent);
+        case TOKEN_USE: {
+            intent->type = INTENT_USE_DB;
+            const Token *db = expect(&p, TOKEN_IDENT);
+            if (!db) {
+                printf("  [parser] Error: expected database name after USE\n");
+                return PARSE_ERROR;
+            }
+            strncpy(intent->db_name, db->value, MAX_NAME_LEN - 1);
+            return PARSE_OK;
+        }
         default:
             printf("  [parser] Unknown statement: \"%s\"\n", first->value);
             return PARSE_ERROR;

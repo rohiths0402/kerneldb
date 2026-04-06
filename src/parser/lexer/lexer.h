@@ -28,7 +28,9 @@ typedef enum {
     TOKEN_EQUALS,
     TOKEN_SEMICOLON,
     TOKEN_EOF,
+    TOKEN_USE,
     TOKEN_UNKNOWN
+    
 } TokenType;
 
 typedef struct {
