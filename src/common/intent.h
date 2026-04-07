@@ -1,10 +1,10 @@
 #ifndef INTENT_H
 #define INTENT_H
 
-#define MAX_COLUMNS     32
-#define MAX_NAME_LEN    64
-#define MAX_VALUE_LEN   256
-#define MAX_VALUES      32
+#define MAX_COLUMNS 32
+#define MAX_NAME_LEN 64
+#define MAX_VALUE_LEN 256
+#define MAX_VALUES 32
 
 typedef enum {
     INTENT_SELECT,
@@ -15,6 +15,8 @@ typedef enum {
     INTENT_DROP_TABLE,
     INTENT_CREATE_DB,
     INTENT_USE_DB,
+    INTENT_BEGIN,
+    INTENT_COMMIT,
     INTENT_UNKNOWN
 } IntentType;
 

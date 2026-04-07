@@ -6,6 +6,9 @@
 #include <unistd.h>
 #include <errno.h>
 #include "wal.h"
+#include "table.h"
+
+extern char current_db[64];
 
 static uint32_t compute_checksum(const WALRecord *rec) {
     uint32_t sum = 0;
@@ -51,7 +54,14 @@ static WALResult read_record(int fd, WALRecord *rec) {
 }
 
 static void redo_insert(const WALRecord *rec) {
-    printf("    → applying insert to table %s\n", rec->table);
+   strcpy(current_db, "default"); 
+   Table *table =table_open(rec->table);
+   if (!table) {
+       fprintf(stderr, "  [wal] REDO failed — table not found: %s\n", rec->table);
+       return;
+   }
+   table_insert_raw(table, rec->data, rec->data_len);
+   table_close(table);  
 }
 
 WAL *wal_open(void) {

@@ -29,6 +29,8 @@ typedef enum {
     TOKEN_SEMICOLON,
     TOKEN_EOF,
     TOKEN_USE,
+    TOKEN_BEGIN,
+    TOKEN_COMMIT,
     TOKEN_UNKNOWN
     
 } TokenType;

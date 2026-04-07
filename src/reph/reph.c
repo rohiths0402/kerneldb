@@ -127,21 +127,21 @@ void repl_run(void) {
             show_prompt = 1;
             continue;
         }
-        if (strlen(query) == 0 && strchr(line, ';') == NULL) {
+        // if (strlen(query) == 0 && strchr(line, ';') == NULL) {
 
-            if (strncasecmp(line, "SELECT", 6) != 0 &&
-                strncasecmp(line, "INSERT", 6) != 0 &&
-                strncasecmp(line, "UPDATE", 6) != 0 &&
-                strncasecmp(line, "DELETE", 6) != 0 &&
-                strncasecmp(line, "CREATE", 6) != 0 &&
-                strncasecmp(line, "DROP", 4) != 0 &&
-                strncasecmp(line, "USE", 3) != 0) {
+        //     if (strncasecmp(line, "SELECT", 6) != 0 &&
+        //         strncasecmp(line, "INSERT", 6) != 0 &&
+        //         strncasecmp(line, "UPDATE", 6) != 0 &&
+        //         strncasecmp(line, "DELETE", 6) != 0 &&
+        //         strncasecmp(line, "CREATE", 6) != 0 &&
+        //         strncasecmp(line, "DROP", 4) != 0 &&
+        //         strncasecmp(line, "USE", 3) != 0) {
 
-                printf("  Unrecognized command: [%s]\n\n", line);
-                show_prompt = 1;
-                continue;
-            }
-        }
+        //         printf("  Unrecognized command: [%s]\n\n", line);
+        //         show_prompt = 1;
+        //         continue;
+        //     }
+        // }
         strncat(query, line, sizeof(query) - strlen(query) - 1);
         if (strchr(line, ';')) {
 

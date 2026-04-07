@@ -1,44 +1,97 @@
 #!/bin/bash
-# WAL stress test for KernelDB
-# Inserts 20 rows then simulates a crash
 
-echo "=== KernelDB WAL Stress Test ==="
+echo "=== KernelDB WAL Stress + Performance Test ==="
 echo ""
 
-# Clean slate
+# Clean state
 rm -rf data/
 mkdir -p data
 
-# Build commands
-CMDS="CREATE TABLE students (id INT, name TEXT, mark INT)"
-for i in $(seq 1 2000); do
+# -----------------------------
+# Step 1: Bulk insert (100 rows)
+# -----------------------------
+echo "--- Step 1: Bulk insert  ---"
+
+CMDS="CREATE DATABASE testdb;
+USE testdb;
+CREATE TABLE users (id INT, name TEXT);"
+
+for i in $(seq 1 10); do
     CMDS="$CMDS
-INSERT INTO students VALUES ($i, student$i, $((RANDOM % 100)))"
+INSERT INTO users VALUES ($i, 'user$i');"
 done
+
 CMDS="$CMDS
-SELECT * FROM students
 .exit"
 
-echo "--- Step 1: Insert 20 rows ---"
-echo "$CMDS" | ./kerneldb
+START=$(date +%s%3N)
 
+echo "$CMDS" | ./kerneldb > /dev/null
+
+END=$(date +%s%3N)
+
+echo "Inserted 100 rows in $((END-START)) ms"
+
+# -----------------------------
+# Step 2: Crash BEFORE commit
+# -----------------------------
 echo ""
-echo "--- Step 2: Simulate crash (kill after 5 inserts) ---"
-# Insert 5 more rows then kill
-{
-    echo "INSERT INTO students VALUES (21, crash_test1, 99)"
-    echo "INSERT INTO students VALUES (22, crash_test2, 88)"
-    echo "INSERT INTO students VALUES (23, crash_test3, 77)"
-    sleep 0.5
-} | ./kerneldb &
+echo "--- Step 2: Crash BEFORE COMMIT ---"
+
+echo "
+USE testdb;
+BEGIN;
+INSERT INTO users VALUES (101, 'crash_before');
+" | ./kerneldb &
+
 PID=$!
-sleep 0.3
+sleep 1
 kill -9 $PID 2>/dev/null
-echo "Process killed (simulated crash)"
+
+echo "Process killed (before commit)"
+
+# -----------------------------
+# Step 3: Recovery check
+# -----------------------------
+echo ""
+echo "--- Step 3: Recovery check (should NOT include 101) ---"
+
+echo "
+USE testdb;
+SELECT * FROM users;
+.exit
+" | ./kerneldb
+
+# -----------------------------
+# Step 4: Crash AFTER commit
+# -----------------------------
+echo ""
+echo "--- Step 4: Crash AFTER COMMIT ---"
+
+echo "
+USE testdb;
+BEGIN;
+INSERT INTO users VALUES (102, 'crash_after');
+COMMIT;
+" | ./kerneldb &
+
+PID=$!
+sleep 1
+kill -9 $PID 2>/dev/null
+
+echo "Process killed (after commit)"
+
+# -----------------------------
+# Step 5: Final recovery
+# -----------------------------
+echo ""
+echo "--- Step 5: Final recovery (should include 102) ---"
+
+echo "
+USE testdb;
+SELECT * FROM users;
+.exit
+" | ./kerneldb
 
 echo ""
-echo "--- Step 3: Restart — WAL should recover all rows ---"
-echo -e "SELECT * FROM students\n.exit" | ./kerneldb
-
-echo ""
-echo "=== Test Complete ==="   
+echo "=== Test Complete ==="

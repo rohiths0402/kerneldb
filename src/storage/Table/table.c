@@ -297,6 +297,50 @@ TableResult table_insert(Table *table, const Intent *intent) {
     return TABLE_OK;
 }
 
+TableResult table_insert_raw(Table *table, const uint8_t *row_buf, uint16_t row_len) {
+
+    for (uint32_t pid = 0; pid < table->page_count; pid++) {
+        BufferFrame *frame = buf_pin(&table->pool, pid);
+        if (!frame) continue;
+
+        uint16_t slot_out;
+        rwlock_write_lock(&frame->lock);
+        PageResult pr = page_insert(frame->page, row_buf, row_len, &slot_out);
+        rwlock_write_unlock(&frame->lock);
+
+        if (pr == PAGE_OK) {
+            buf_mark_dirty(frame);
+
+            char key_str[MAX_VALUE_LEN];
+            get_col_value(row_buf, table->index_col, key_str, sizeof(key_str));
+            RowLocation loc = { .page_id = pid, .slot_id = slot_out };
+            INDEX_insert(table->index, atoi(key_str), loc);
+
+            return TABLE_OK;
+        }
+    }
+
+    // new page
+    uint32_t new_pid = table->page_count;
+    char key_str[MAX_VALUE_LEN];
+    uint16_t slot_out;
+
+    BufferFrame *frame = buf_new_page(&table->pool, new_pid);
+    if (!frame){
+        return TABLE_ERROR;
+    }
+    rwlock_write_lock(&frame->lock);
+    page_insert(frame->page, row_buf, row_len, &slot_out);
+    rwlock_write_unlock(&frame->lock);
+    buf_mark_dirty(frame);
+    table->page_count++;
+    get_col_value(row_buf, table->index_col, key_str, sizeof(key_str));
+    RowLocation loc = { .page_id = new_pid, .slot_id = slot_out };
+    INDEX_insert(table->index, atoi(key_str), loc);
+
+    return TABLE_OK;
+}
+
 void table_scan(Table *table, const Intent *intent) {
     uint8_t  buf[PAGE_SIZE];
     uint16_t len;

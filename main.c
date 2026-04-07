@@ -17,5 +17,6 @@ int main(void) {
     repl_run();
 
     wal_close(g_wal);
+    
     return 0;
 }

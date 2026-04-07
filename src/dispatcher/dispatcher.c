@@ -9,21 +9,27 @@
 #include "parser.h"
 #include "intent.h"
 #include "../storage/Table/table.h"
+#include "../WAL/wal.h"
 
 char current_db[64] = "default";
+extern WAL *g_wal;
+
+static int txn_active = 0;
+static uint32_t current_txn = 0;
 
 static const char *ltrim(const char *s) {
-while (*s && isspace((unsigned char)*s)) s++;
-return s;
+    while (*s && isspace((unsigned char)*s)) s++;
+    return s;
 }
 
 static int starts_with_ci(const char *str, const char *prefix) {
-while (*prefix) {
-if (tolower((unsigned char)*str) != tolower((unsigned char)*prefix))
-return 0;
-str++; prefix++;
-}
-return 1;
+    while (*prefix) {
+        if (tolower((unsigned char)*str) != tolower((unsigned char)*prefix)){
+            return 0;
+        }
+        str++; prefix++;
+    }
+    return 1;
 }
 
 static ExecResult handle_show_db(void) {
@@ -171,6 +177,19 @@ static ExecResult handle_sql(Command *cmd) {
             return EXEC_SUCCESS;
         }
 
+        case INTENT_BEGIN: {
+            wal_begin(g_wal, &current_txn);
+            txn_active = 1;
+            printf("  [txn] BEGIN %d\n\n", current_txn);
+            return EXEC_SUCCESS;
+        }
+        
+        case INTENT_COMMIT: {
+            wal_commit(g_wal, current_txn);
+            txn_active = 0;
+            printf("  [txn] COMMIT %d\n\n", current_txn);
+            return EXEC_SUCCESS;
+        }
         default:
             printf("  [error] Unknown intent.\n\n");
             return EXEC_ERROR;
@@ -180,7 +199,7 @@ static ExecResult handle_sql(Command *cmd) {
 }
 
 static const char *SQL_KEYWORDS[] = {
-"select","insert","update","delete","create","drop","alter","use", NULL
+"select","insert","update","delete","create","drop","alter","use", "begin", "commit", NULL
 };
 
 static void classify(Command *cmd) {

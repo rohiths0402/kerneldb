@@ -12,14 +12,17 @@ typedef struct {
 } Parser;
 
 static const Token *current(Parser *p) {
-    if (p->pos < p->list->count)
+    if (p->pos < p->list->count){
         return &p->list->tokens[p->pos];
+    }
     return &p->list->tokens[p->list->count - 1]; 
 }
 
 static const Token *advance(Parser *p) {
     const Token *t = current(p);
-    if (t->type != TOKEN_EOF) p->pos++;
+    if (t->type != TOKEN_EOF){
+        p->pos++;
+    }
     return t;
 }
 
@@ -182,11 +185,10 @@ static ParseResult parse_delete(Parser *p, Intent *intent) {
 
 static ParseResult parse_create(Parser *p, Intent *intent) {
 
-    // 🔥 CHECK DATABASE FIRST
     if (check(p, TOKEN_IDENT) &&
         strcasecmp(current(p)->value, "DATABASE") == 0) {
 
-        advance(p);  // consume DATABASE
+        advance(p);
 
         intent->type = INTENT_CREATE_DB;
 
@@ -259,7 +261,19 @@ ParseResult parse(const char *sql, Intent *intent) {
     TokenList tokens;
     lexer_tokenize(sql, &tokens);
     Parser p = { .list = &tokens, .pos = 0 };
-    const Token *first = advance(&p);
+    const Token *first = current(&p);
+
+    if (first->type == TOKEN_BEGIN) {
+        advance(&p);
+        intent->type = INTENT_BEGIN;
+        return PARSE_OK;
+    }
+
+    if (first->type == TOKEN_COMMIT) {
+        advance(&p);
+        intent->type = INTENT_COMMIT;
+        return PARSE_OK;
+    }
 
     switch (first->type) {
         case TOKEN_SELECT: return parse_select(&p, intent);
@@ -268,6 +282,14 @@ ParseResult parse(const char *sql, Intent *intent) {
         case TOKEN_DELETE: return parse_delete(&p, intent);
         case TOKEN_CREATE: return parse_create(&p, intent);
         case TOKEN_DROP:   return parse_drop(&p, intent);
+        case TOKEN_BEGIN: {
+            intent->type = INTENT_BEGIN;
+            return PARSE_OK;
+        }
+        case TOKEN_COMMIT: {
+            intent->type = INTENT_COMMIT;
+            return PARSE_OK;
+        }
         case TOKEN_USE: {
             intent->type = INTENT_USE_DB;
             const Token *db = expect(&p, TOKEN_IDENT);
@@ -282,12 +304,13 @@ ParseResult parse(const char *sql, Intent *intent) {
             printf("  [parser] Unknown statement: \"%s\"\n", first->value);
             return PARSE_ERROR;
     }
+    printf("FIRST TOKEN TYPE=%d VALUE=[%s]\n", first->type, first->value);
 }
 
 void intent_print(const Intent *intent) {
     static const char *TYPE_NAMES[] = {
         "SELECT", "INSERT", "UPDATE", "DELETE",
-        "CREATE_TABLE", "DROP_TABLE", "UNKNOWN"
+        "CREATE_TABLE", "DROP_TABLE", "BEGIN", "COMMIT", "UNKNOWN"
     };
 
     printf("\n  [parser] Intent:\n");
@@ -312,8 +335,7 @@ void intent_print(const Intent *intent) {
     }
 
     if (intent->where.active)
-        printf("    where : %s = %s\n",
-               intent->where.column, intent->where.value);
+        printf("    where : %s = %s\n", intent->where.column, intent->where.value);
 
     printf("\n");
 }
