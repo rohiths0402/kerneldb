@@ -2,9 +2,9 @@
 #define WAL_H
 
 #include <stdint.h>
-#define WAL_FILE         "data/wal.log"
-#define WAL_MAX_DATA     256
-#define WAL_TABLE_LEN    64
+#define WAL_FILE "data/wal.log"
+#define WAL_MAX_DATA 256
+#define WAL_TABLE_LEN 64
 
 typedef enum {
     WAL_BEGIN = 1,
@@ -25,7 +25,7 @@ typedef struct {
 } WALRecord;
 
 typedef struct {
-    int fd;
+    int fd; 
     uint64_t next_lsn;
     uint32_t next_txn;
 } WAL;

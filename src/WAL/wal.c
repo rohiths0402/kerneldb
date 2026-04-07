@@ -50,6 +50,10 @@ static WALResult read_record(int fd, WALRecord *rec) {
     return WAL_OK;
 }
 
+static void redo_insert(const WALRecord *rec) {
+    printf("    → applying insert to table %s\n", rec->table);
+}
+
 WAL *wal_open(void) {
     WAL *wal = calloc(1, sizeof(WAL));
     if (!wal) return NULL;
@@ -60,10 +64,8 @@ WAL *wal_open(void) {
         return NULL;
     }
 
-    /* Scan existing records to restore LSN and txn counters */
     wal->next_lsn = 1;
     wal->next_txn = 1;
-
     WALRecord rec;
     while (read_record(wal->fd, &rec) == WAL_OK) {
         if (rec.lsn >= wal->next_lsn)
@@ -131,8 +133,6 @@ WALResult wal_commit(WAL *wal, uint32_t txn_id) {
 
     WALResult result = write_record(wal->fd, &rec);
     if (result != WAL_OK) return result;
-
-    /* fsync — force OS buffer cache to disk (your OS contract) */
     if (fsync(wal->fd) < 0) {
         fprintf(stderr, "  [wal] fsync failed: %s\n", strerror(errno));
         return WAL_ERROR;
@@ -144,8 +144,6 @@ WALResult wal_commit(WAL *wal, uint32_t txn_id) {
 WALResult wal_recover(WAL *wal) {
     if (!wal) return WAL_ERROR;
     printf("\n  [wal] Starting recovery...\n");
-
-    /* Seek to beginning */
     lseek(wal->fd, 0, SEEK_SET);
 
     /* Read all records */
@@ -161,8 +159,6 @@ WALResult wal_recover(WAL *wal) {
         lseek(wal->fd, 0, SEEK_END);
         return WAL_OK;
     }
-
-    /* Find committed transactions */
     uint32_t committed[256];
     int commit_count = 0;
     for (int i = 0; i < count; i++) {
@@ -172,31 +168,32 @@ WALResult wal_recover(WAL *wal) {
     }
 
     printf("  [wal] Found %d records, %d committed transactions\n", count, commit_count);
-
-    /* REDO committed transactions */
     int redone = 0;
     int skipped = 0;
-
     for (int i = 0; i < count; i++) {
         if (records[i].type == WAL_BEGIN || records[i].type == WAL_COMMIT)
             continue;
-
-        /* Check if this txn was committed */
         int is_committed = 0;
-        for (int j = 0; j < commit_count; j++) {
-            if (committed[j] == records[i].txn_id) {
-                is_committed = 1;
-                break;
+        if(records[i].txn_id == 0) {
+            is_committed = 1;
+        }
+        else {
+            for (int j = 0; j < commit_count; j++) {
+                if (committed[j] == records[i].txn_id) {
+                    is_committed = 1;
+                    break;
+                }
             }
         }
-
         if (is_committed) {
-            /* REDO — this transaction committed, apply it */
             const char *op = records[i].type == WAL_INSERT ? "INSERT" : records[i].type == WAL_UPDATE ? "UPDATE" : "DELETE";
             printf("  [wal] REDO lsn=%-4llu txn=%-3u %-7s table=%s data=%s\n", (unsigned long long)records[i].lsn, records[i].txn_id, op, records[i].table, records[i].data);
+            if(records[i].type == WAL_INSERT) {
+                redo_insert(&records[i]);
+            }
             redone++;
-        } else {
-            /* UNDO — incomplete transaction, skip it */
+        } 
+        else {
             printf("  [wal] UNDO lsn=%-4llu txn=%-3u (incomplete — skipped)\n", (unsigned long long)records[i].lsn, records[i].txn_id);
             skipped++;
         }
