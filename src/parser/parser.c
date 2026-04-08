@@ -276,12 +276,30 @@ ParseResult parse(const char *sql, Intent *intent) {
     }
 
     switch (first->type) {
-        case TOKEN_SELECT: return parse_select(&p, intent);
-        case TOKEN_INSERT: return parse_insert(&p, intent);
-        case TOKEN_UPDATE: return parse_update(&p, intent);
-        case TOKEN_DELETE: return parse_delete(&p, intent);
-        case TOKEN_CREATE: return parse_create(&p, intent);
-        case TOKEN_DROP:   return parse_drop(&p, intent);
+        case TOKEN_SELECT: {
+            advance(&p);
+            return parse_select(&p, intent);
+        }
+        case TOKEN_INSERT: {
+            advance(&p);
+            return parse_insert(&p, intent);
+        }
+        case TOKEN_UPDATE: {
+            advance(&p);
+            return parse_update(&p, intent);
+        }
+        case TOKEN_DELETE: {
+            advance(&p);
+            return parse_delete(&p, intent);
+        }
+        case TOKEN_CREATE:{
+            advance(&p);
+            return parse_create(&p, intent);
+        }
+        case TOKEN_DROP:{
+            advance(&p);
+            return parse_drop(&p, intent);
+        }
         case TOKEN_BEGIN: {
             intent->type = INTENT_BEGIN;
             return PARSE_OK;
@@ -291,6 +309,7 @@ ParseResult parse(const char *sql, Intent *intent) {
             return PARSE_OK;
         }
         case TOKEN_USE: {
+            advance(&p);
             intent->type = INTENT_USE_DB;
             const Token *db = expect(&p, TOKEN_IDENT);
             if (!db) {
