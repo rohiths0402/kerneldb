@@ -1,7 +1,5 @@
 # 🛠️ KernelDB
 
-> A database engine built from scratch in C — no external libraries, no shortcuts.
-
 KernelDB implements real database internals: a hand-written SQL parser, B+ Tree indexing, slotted page storage, LRU buffer pool, Write-Ahead Logging with crash recovery, and page-level concurrency — all in C17.
 
 ---
