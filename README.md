@@ -1,7 +1,8 @@
 # 🛠️ KernelDB
 
+> A database engine built from scratch in C — no external libraries, no shortcuts.
 
-KernelDB implements real database internals: a hand-written SQL parser, B+ Tree indexing, slotted page storage, LRU buffer pool, Write Ahead Logging with crash recovery, and page-level concurrency — all in C17.
+KernelDB implements real database internals: a hand-written SQL parser, B+ Tree indexing, slotted page storage, LRU buffer pool, Write-Ahead Logging with crash recovery, and page-level concurrency — all in C17.
 
 ---
 
@@ -17,24 +18,42 @@ KernelDB implements real database internals: a hand-written SQL parser, B+ Tree 
 
 ---
 
-## 🧠 How It Works
+## 🧠 How a Query Flows Through KernelDB
 
-```text
-User Query (CLI)
-      ↓
-Lexer → Parser → Intent
-      ↓
-Dispatcher
-      ↓
-WAL (write before storage)
-      ↓
-Table Layer
-      ↓
-[B+ Tree Lookup OR Full Scan]
-      ↓
-Buffer Pool → Page → Disk
-      ↓
-Result Output
+```mermaid
+flowchart TD
+    A["🖥️ CLI / REPL\npoll() event loop · signal-safe · pthread monitor"]
+    B["📝 Lexer → Parser\nhand-written · recursive descent · no libraries"]
+    C["🔀 Dispatcher\nroutes SELECT / INSERT / UPDATE / DELETE"]
+    D["📋 WAL — Write-Ahead Log\nLSN · checksum · fsync before commit"]
+    E["🔒 Table Layer\nrwlock per frame · read/write separation"]
+    F["🌳 B+ Tree Index\nO(log n) · leaf chaining · RowLocation"]
+    G["🔍 Full Scan\nslot-by-slot · all pages"]
+    H["💾 Buffer Pool — LRU\n7 frames · dirty tracking · write-back on evict"]
+    I["📄 Slotted Page — 4KB\nvariable-length rows · slot directory · checksum"]
+    J["💿 Disk — fsync"]
+
+    A -->|SQL string| B
+    B -->|Intent struct| C
+    C --> D
+    D --> E
+    E -->|WHERE id=?| F
+    E -->|SELECT star| G
+    F --> H
+    G --> H
+    H --> I
+    I --> J
+
+    style A fill:#534AB7,color:#EEEDFE,stroke:#3C3489
+    style B fill:#534AB7,color:#EEEDFE,stroke:#3C3489
+    style C fill:#0F6E56,color:#E1F5EE,stroke:#085041
+    style D fill:#854F0B,color:#FAEEDA,stroke:#633806
+    style E fill:#0F6E56,color:#E1F5EE,stroke:#085041
+    style F fill:#993C1D,color:#FAECE7,stroke:#712B13
+    style G fill:#5F5E5A,color:#F1EFE8,stroke:#444441
+    style H fill:#0F6E56,color:#E1F5EE,stroke:#085041
+    style I fill:#534AB7,color:#EEEDFE,stroke:#3C3489
+    style J fill:#5F5E5A,color:#F1EFE8,stroke:#444441
 ```
 
 ---
@@ -138,7 +157,7 @@ kerneldb/
 | | |
 |---|---|
 | **Language** | C (C17) |
-| **I/O** | POSIX (`poll`, `fsync`, `io_uring` planned) |
+| **I/O** | POSIX (`poll`, `fsync`) |
 | **Memory** | Manual allocation (`posix_memalign`) |
 | **Concurrency** | `pthread_rwlock` |
 | **Build** | Makefile |
