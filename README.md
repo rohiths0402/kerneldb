@@ -1,327 +1,167 @@
-# 🚀 KernelDB
+# 🛠️ KernelDB
 
-> A production-grade database engine built from scratch in C — implementing storage, indexing, query execution, and system-level control without external dependencies.
 
-KernelDB is a **CLI-based embedded database engine** that demonstrates real-world database internals, including **B+ Tree indexing, slotted page storage, LRU buffer management, and query execution pipelines**.
-
----
-
-## ✨ Key Highlights
-
-<<<<<<< HEAD
-- ⚡ **Indexed Queries** — B+ Tree enables O(log n) lookups
-- 💾 **Storage Engine** — Slotted pages with variable-length records
-- 🧠 **Buffer Pool** — LRU caching with dirty page write-back
-- 🧩 **Query Execution** — SQL → Intent → Execution pipeline
-- 🖥️ **CLI Interface** — Interactive REPL for real-time queries
-- 🔧 **Built in C** — No external database libraries
-=======
-- ⚡ **Indexed Queries** — B+ Tree enables O(log n) lookups  
-- 💾 **Storage Engine** — Slotted pages with variable-length records  
-- 🧠 **Buffer Pool** — LRU caching with dirty page write-back  
-- 🧩 **Query Execution** — SQL → Intent → Execution pipeline  
-- 🖥️ **CLI Interface** — Interactive REPL for real-time queries  
-- 🔧 **Built in C** — No external database libraries  
->>>>>>> 1a5462f (docs: improve README with architecture, flow, and project presentation)
+KernelDB implements real database internals: a hand-written SQL parser, B+ Tree indexing, slotted page storage, LRU buffer pool, Write Ahead Logging with crash recovery, and page-level concurrency — all in C17.
 
 ---
 
-## 🧠 How It Works (End-to-End Flow)
+## ⚡ Key Features
 
-<<<<<<< HEAD
-``` text
-=======
-\`\`\`text
->>>>>>> 1a5462f (docs: improve README with architecture, flow, and project presentation)
+- **B+ Tree Index** — O(log n) lookups with leaf node chaining for range scans
+- **Slotted Page Storage** — 4KB pages with variable-length record support
+- **LRU Buffer Pool** — dirty page tracking and write-back to disk
+- **Write-Ahead Logging** — LSN-based WAL with `fsync()` on commit and crash recovery
+- **SQL Parser** — hand-written lexer + recursive descent parser, zero dependencies
+- **Concurrency** — per-frame reader-writer locks on the buffer pool
+- **Signal-safe REPL** — non-blocking event loop using `poll()` with graceful shutdown
+
+---
+
+## 🧠 How It Works
+
+```text
 User Query (CLI)
       ↓
-Parser → Intent
+Lexer → Parser → Intent
       ↓
 Dispatcher
       ↓
+WAL (write before storage)
+      ↓
 Table Layer
       ↓
-[Index Lookup OR Full Scan]
+[B+ Tree Lookup OR Full Scan]
       ↓
 Buffer Pool → Page → Disk
       ↓
 Result Output
-<<<<<<< HEAD
-🏗️ Architecture Overview
-
-KernelDB is structured into modular layers, each representing a core database system concept.
-
-🟢 Layer 1 — Control Plane
-Signal-safe REPL using poll()
-Non-blocking event loop
-Background monitoring thread (pthread)
-Graceful signal handling (SIGINT, SIGTERM)
-
-👉 Demonstrates OS-level system design
-
-🟢 Layer 2 — SQL Parsing
-Hand-written lexer + recursive descent parser
-Converts SQL → structured Intent
-Supports:
-SELECT, INSERT, UPDATE, DELETE
-CREATE TABLE, DROP TABLE
-
-👉 No libraries — built from first principles
-
-🔄 Layer 3 — WAL (In Progress)
-Write-Ahead Logging for durability
-Crash recovery via log replay
-fsync() before commit
-
-👉 Target: ACID compliance
-
-🟢 Layer 4 — B+ Tree Index
-Per-table index
-Node splitting + balanced tree growth
-Leaf node chaining for range scans
-Automatic index maintenance on insert/update/delete
-
-👉 Enables fast indexed queries
-
-🟢 Layer 5 — Storage Engine + Buffer Pool
-Slotted page layout (4KB pages)
-Variable-length row storage
-LRU buffer pool (7 frames per table)
-Dirty page tracking + write-back
-
-👉 Simulates real database storage systems
-
-🔄 Layer 6 — Concurrency (Planned)
-Reader-writer locks
-Async I/O (io_uring)
-Multi-threaded execution
-
-🖥️ Example CLI Session
-=======
-\`\`\`
+```
 
 ---
 
-## 🏗️ Architecture Overview
+## 🏗️ Architecture
 
-KernelDB is structured into **modular layers**, each representing a core database system concept.
-
----
-
-### 🟢 Layer 1 — Control Plane
-- Signal-safe REPL using \`poll()\`
+### Layer 1 — Control Plane
+- Signal-safe REPL using `poll()`
 - Non-blocking event loop
-- Background monitoring thread (\`pthread\`)
-- Graceful signal handling (\`SIGINT\`, \`SIGTERM\`)
+- Background monitoring thread (`pthread`)
+- Graceful `SIGINT` / `SIGTERM` handling
 
-👉 **Demonstrates OS-level system design**
-
----
-
-### 🟢 Layer 2 — SQL Parsing
+### Layer 2 — SQL Parser
 - Hand-written lexer + recursive descent parser
-- Converts SQL → structured \`Intent\`
-- Supports:
-  - \`SELECT\`, \`INSERT\`, \`UPDATE\`, \`DELETE\`
-  - \`CREATE TABLE\`, \`DROP TABLE\`
+- Converts SQL → structured `Intent`
+- Supports: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE TABLE`, `DROP TABLE`
+- No parser libraries — built from first principles
 
-👉 **Built from first principles — no libraries**
+### Layer 3 — Write-Ahead Logging (WAL)
+- LSN-based records with checksums
+- `fsync()` enforced before commit acknowledgment
+- Crash recovery: replays committed transactions, discards incomplete ones
+- WAL truncation after successful checkpoint
 
----
-
-### 🔄 Layer 3 — WAL (In Progress)
-- Write-Ahead Logging for durability
-- Crash recovery via log replay
-- \`fsync()\` before commit
-
-👉 **Target: ACID compliance**
-
----
-
-### 🟢 Layer 4 — B+ Tree Index
-- Per-table index
-- Node splitting + balanced growth
+### Layer 4 — B+ Tree Index
+- Per-table index with automatic maintenance on insert / update / delete
+- Node splitting with balanced tree growth
 - Leaf node chaining for range scans
-- Automatic index maintenance on insert/update/delete
+- O(log n) point lookups via `RowLocation` (page_id + slot_id)
 
-👉 **Enables fast indexed queries**
-
----
-
-### 🟢 Layer 5 — Storage Engine + Buffer Pool
+### Layer 5 — Storage Engine + Buffer Pool
 - Slotted page layout (4KB pages)
-- Variable-length row storage
+- Variable-length row storage with slot directory
 - LRU buffer pool (7 frames per table)
-- Dirty page tracking + write-back
+- Dirty page tracking + write-back on eviction
+- Page checksums for integrity
 
-👉 **Simulates real database storage systems**
-
----
-
-### 🔄 Layer 6 — Concurrency (Planned)
-- Reader-writer locks
-- Async I/O (\`io_uring\`)
-- Multi-threaded execution
+### Layer 6 — Concurrency
+- Per-frame `pthread_rwlock` on buffer pool frames
+- Read-write separation: multiple readers, exclusive writer
+- Integrated at table layer for all read and write paths
 
 ---
 
-## 🖥️ Example CLI Session
+## 🖥️ CLI Session
 
-\`\`\`sql
->>>>>>> 1a5462f (docs: improve README with architecture, flow, and project presentation)
+```sql
 kerneldb> CREATE TABLE users (id INT, name TEXT)
 
 kerneldb> INSERT INTO users VALUES (1, rohith)
 kerneldb> INSERT INTO users VALUES (2, admin)
 
 kerneldb> SELECT * FROM users
-<<<<<<< HEAD
-[full scan]
-
-kerneldb> SELECT * FROM users WHERE id = 1
-[index lookup]
-
-⚡ Indexed Query Example
-SELECT * FROM users WHERE id = 1
-Uses B+ Tree lookup
-Avoids full table scan
-Direct page access via RowLocation
-
-📦 Build & Run
-=======
   2 row(s) found  [full scan]
 
 kerneldb> SELECT * FROM users WHERE id = 1
   1 row(s) found  [index lookup]
-\`\`\`
-
----
-
-## ⚡ Indexed Query Example
-
-\`\`\`sql
-SELECT * FROM users WHERE id = 1
-\`\`\`
-
-- Uses **B+ Tree lookup**
-- Avoids full table scan
-- Direct page access via \`RowLocation\`
+```
 
 ---
 
 ## 📦 Build & Run
 
-\`\`\`bash
->>>>>>> 1a5462f (docs: improve README with architecture, flow, and project presentation)
+```bash
 git clone https://github.com/rohiths0402/kerneldb.git
 cd kerneldb
 make
 ./kerneldb
-<<<<<<< HEAD
-
-📁 Project Structure
-kerneldb/
-├── main.c
-├── Makefile
-├── data/
-└── src/
-  ├── repl/        # CLI + control plane
-  ├── parser/      # SQL parsing
-  ├── dispatcher/  # execution routing
-  ├── index/       # B+ Tree index
-  ├── storage/     # pages + buffer + table
-  ├── monitor/     # background thread
-  └── common/      # shared typeses
-
-🛠️ Tech Stack
-Language: C (C17)
-I/O: POSIX (poll, fsync)
-Memory: Manual allocation (posix_memalign)
-Concurrency: pthread
-Build: Makefile
-
-🎯 Why This Project?
-
-Most developers use databases — few understand how they work internally.
-
-KernelDB is built to deeply explore:
-
-How queries are parsed and executed
-How indexes improve performance
-How storage is managed on disk
-How memory caching improves speed
-How systems handle failures and recovery
-
-👉 Every component is implemented from scratch.
-
-🚀 Roadmap
- WAL + crash recovery
- Concurrency control
- Async I/O (io_uring)
- Query optimizer improvements
- 
-👨‍💻 Author
-Rohith S
-GitHub: https://github.com/rohiths0402
-LinkedIn: https://linkedin.com/in/rohiths0402
-Portfolio: https://rohithsportfolio.vercel.app
 ```
-=======
-\`\`\`
+
+**Requirements:** GCC, POSIX-compliant Linux, `make`
 
 ---
 
 ## 📁 Project Structure
 
-\`\`\`text
+```text
 kerneldb/
 ├── main.c
 ├── Makefile
-├── data/
+├── data/                  # persistent storage
 └── src/
-    ├── repl/        # CLI + control plane
-    ├── parser/      # SQL parsing
-    ├── dispatcher/  # execution routing
-    ├── index/       # B+ Tree index
-    ├── storage/     # pages + buffer + table
-    ├── monitor/     # background thread
-    └── common/      # shared types
-\`\`\`
+    ├── reph/              # REPL + control plane
+    ├── Parser/            # lexer + recursive descent parser
+    ├── dispatcher/        # execution routing
+    ├── WAL/               # write-ahead logging
+    ├── index/             # B+ Tree
+    ├── storage/
+    │   ├── buffer/        # LRU buffer pool
+    │   ├── page/          # slotted page layout
+    │   └── Table/         # table management
+    ├── concurrency/       # reader-writer locks
+    ├── monitor/           # background monitor thread
+    └── common/            # shared types
+```
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Language:** C (C17)  
-- **I/O:** POSIX (\`poll\`, \`fsync\`)  
-- **Memory:** Manual allocation (\`posix_memalign\`)  
-- **Concurrency:** \`pthread\`  
-- **Build:** Makefile  
-
----
-
-## 🎯 Why KernelDB?
-
-Most developers use databases — few understand how they work internally.
-
-KernelDB is built to deeply explore:
-
-- How queries are parsed and executed  
-- How indexes improve performance  
-- How storage is managed on disk  
-- How memory caching improves speed  
-- How systems handle failures and recovery  
-
-👉 **Every component is implemented from scratch.**
+| | |
+|---|---|
+| **Language** | C (C17) |
+| **I/O** | POSIX (`poll`, `fsync`, `io_uring` planned) |
+| **Memory** | Manual allocation (`posix_memalign`) |
+| **Concurrency** | `pthread_rwlock` |
+| **Build** | Makefile |
 
 ---
 
 ## 🚀 Roadmap
 
-- [ ] WAL + crash recovery  
-- [ ] Concurrency control  
-- [ ] Async I/O (\`io_uring\`)  
-- [ ] Query optimizer improvements  
+- [ ] Page-level LSN for idempotent REDO
+- [ ] Explicit `BEGIN` / `COMMIT` / `ROLLBACK` in REPL
+- [ ] UNDO logs + before-image for rollback
+- [ ] B+ Tree merge on delete
+- [ ] Async I/O (`io_uring`)
+- [ ] Query optimizer
+- [ ] Isolation levels
+
+---
+
+## 🎯 Why KernelDB?
+
+Most engineers use databases. Few understand what happens below the query.
+
+KernelDB was built to go all the way down — how pages are laid out on disk, how an index finds a row in O(log n), how a WAL protects data across crashes, how a buffer pool decides what to evict. Every component written by hand, from scratch.
 
 ---
 
@@ -329,8 +169,6 @@ KernelDB is built to deeply explore:
 
 **Rohith S**
 
-- GitHub: https://github.com/rohiths0402  
-- LinkedIn: https://linkedin.com/in/rohiths0402  
-- Portfolio: https://rohithsportfolio.vercel.app  
-EOF
->>>>>>> 1a5462f (docs: improve README with architecture, flow, and project presentation)
+- GitHub: [github.com/rohiths0402](https://github.com/rohiths0402)
+- LinkedIn: [linkedin.com/in/rohiths0402](https://linkedin.com/in/rohiths0402)
+- Portfolio: [rohithsportfolio.vercel.app](https://rohithsportfolio.vercel.app)

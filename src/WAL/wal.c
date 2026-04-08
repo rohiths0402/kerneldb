@@ -54,7 +54,7 @@ static WALResult read_record(int fd, WALRecord *rec) {
 }
 
 static void redo_insert(const WALRecord *rec) {
-   strcpy(current_db, "default"); 
+   strcpy(current_db, "testdb");
    Table *table =table_open(rec->table);
    if (!table) {
        fprintf(stderr, "  [wal] REDO failed — table not found: %s\n", rec->table);
@@ -103,9 +103,9 @@ WALResult wal_begin(WAL *wal, uint32_t *txn_id) {
 
     WALRecord rec;
     memset(&rec, 0, sizeof(rec));
-    rec.lsn    = wal->next_lsn++;
+    rec.lsn = wal->next_lsn++;
     rec.txn_id = wal->next_txn++;
-    rec.type   = WAL_BEGIN;
+    rec.type = WAL_BEGIN;
 
     if (txn_id) *txn_id = rec.txn_id;
 
@@ -113,8 +113,9 @@ WALResult wal_begin(WAL *wal, uint32_t *txn_id) {
 }
 
 WALResult wal_write(WAL *wal, uint32_t txn_id, WALRecordType type, const char *table, const uint8_t *data, uint16_t data_len) {
-    if (!wal) return WAL_ERROR;
-
+    if (!wal){
+        return WAL_ERROR;
+    }
     WALRecord rec;
     memset(&rec, 0, sizeof(rec));
     rec.lsn = wal->next_lsn++;

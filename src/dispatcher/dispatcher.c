@@ -146,14 +146,14 @@ static ExecResult handle_sql(Command *cmd) {
                 return EXEC_ERROR;
             }
             wal_write(g_wal, current_txn, WAL_INSERT, intent.table, (uint8_t *)buffer,written);
-            Table *table = table_open(intent.table);
-            if (!table) {
-                printf("  [error] Table not found: %s\n\n", intent.table);
-                return EXEC_ERROR;
-            }
+            // Table *table = table_open(intent.table);
+            // if (!table) {
+            //     printf("  [error] Table not found: %s\n\n", intent.table);
+            //     return EXEC_ERROR;
+            // }
 
-            table_insert(table, &intent);
-            table_close(table);
+            // table_insert(table, &intent);
+            // table_close(table);
 
             return EXEC_SUCCESS;
         }
