@@ -54,7 +54,7 @@ static WALResult read_record(int fd, WALRecord *rec) {
 }
 
 static void redo_insert(const WALRecord *rec) {
-   strcpy(current_db, "testdb");
+//    strcpy(current_db, "testdb");
    Table *table =table_open(rec->table);
    if (!table) {
        fprintf(stderr, "  [wal] REDO failed — table not found: %s\n", rec->table);
@@ -152,6 +152,8 @@ WALResult wal_commit(WAL *wal, uint32_t txn_id) {
     return WAL_OK;
 }
 
+
+
 WALResult wal_recover(WAL *wal) {
     if (!wal) return WAL_ERROR;
     printf("\n  [wal] Starting recovery...\n");
@@ -185,15 +187,10 @@ WALResult wal_recover(WAL *wal) {
         if (records[i].type == WAL_BEGIN || records[i].type == WAL_COMMIT)
             continue;
         int is_committed = 0;
-        if(records[i].txn_id == 0) {
-            is_committed = 1;
-        }
-        else {
-            for (int j = 0; j < commit_count; j++) {
-                if (committed[j] == records[i].txn_id) {
-                    is_committed = 1;
-                    break;
-                }
+        for (int j = 0; j < commit_count; j++) {
+            if (committed[j] == records[i].txn_id) {
+                is_committed = 1;
+                break;
             }
         }
         if (is_committed) {

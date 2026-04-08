@@ -115,6 +115,11 @@ static ExecResult handle_sql(Command *cmd) {
             }
             strncpy(current_db, intent.db_name, sizeof(current_db) - 1);
             current_db[sizeof(current_db) - 1] = '\0';
+            FILE *f = fopen("data/.current_db", "w");
+            if (f) {
+                fprintf(f, "%s", current_db);
+                fclose(f);
+            }
             printf("  [db] switched to %s\n\n", current_db);
             return EXEC_SUCCESS;
         }
