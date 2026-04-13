@@ -161,6 +161,18 @@ BufferFrame *buf_new_page(BufferPool *pool, uint32_t page_id) {
     return &pool->frames[slot];
 }
 
+void buf_mark_clean(BufferFrame *frame) {
+    if (frame) return ;
+    frame->dirty = 0;
+}
+
+void buf_unpin(BufferFrame *frame) {
+    if (!frame) return;
+
+    if (frame->pin_count > 0) {
+        frame->pin_count--;
+    }
+}
 void buf_print(const BufferPool *pool) {
     printf("\n  [buffer pool]  frames=%d  clock=%llu\n",BUFFER_POOL_SIZE, (unsigned long long)pool->clock);
     printf("  %-6s  %-10s  %-6s  %-10s\n","Frame", "PageID", "Dirty", "LRU Rank");

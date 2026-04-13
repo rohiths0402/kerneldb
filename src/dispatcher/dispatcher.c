@@ -140,25 +140,29 @@ static ExecResult handle_sql(Command *cmd) {
             return EXEC_SUCCESS;
         }
         case INTENT_INSERT: {
+            uint32_t txn = current_txn;
+            int auto_commit = 0;
             if (!txn_active) {
-                printf("  [error] No active transaction. Use BEGIN.\n\n");
-                return EXEC_ERROR;
+                wal_begin(g_wal, &txn);
+                auto_commit = 1;
             }
             char buffer[WAL_MAX_DATA];
             int written = snprintf(buffer, sizeof(buffer), "%s|%s", intent.values[0], intent.values[1]);
-            if(written < 0 || written >= sizeof(buffer)) {
+            if (written < 0 || written >= sizeof(buffer)) {
                 printf("  [error] Data too long for WAL.\n\n");
                 return EXEC_ERROR;
             }
-            wal_write(g_wal, current_txn, WAL_INSERT, intent.table, (uint8_t *)buffer,written);
-            // Table *table = table_open(intent.table);
-            // if (!table) {
-            //     printf("  [error] Table not found: %s\n\n", intent.table);
-            //     return EXEC_ERROR;
-            // }
-
-            // table_insert(table, &intent);
-            // table_close(table);
+            wal_write(g_wal, txn, WAL_INSERT, intent.table, (uint8_t *)buffer, written);
+            Table *table = table_open(intent.table);
+            if (!table) {
+                printf("  [error] Table not found: %s\n\n", intent.table);
+                return EXEC_ERROR;
+            }
+            table_insert_raw(table, (uint8_t *)buffer, written);
+            table_close(table);
+            if (auto_commit) {
+                wal_commit(g_wal, txn);
+            }
 
             return EXEC_SUCCESS;
         }

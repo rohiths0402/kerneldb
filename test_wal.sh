@@ -1,97 +1,92 @@
 #!/bin/bash
 
-echo "=== KernelDB WAL Stress + Performance Test ==="
-echo ""
+BINARY="./kerneldb"
+PASS=0
+FAIL=0
 
-# Clean state
-rm -rf data/
-mkdir -p data
+cleanup() {
+    rm -rf data
+    mkdir -p data/testdb
+}
 
-# -----------------------------
-# Step 1: Bulk insert (100 rows)
-# -----------------------------
-echo "--- Step 1: Bulk insert  ---"
+run_clean() {
+    printf "%s\n" "$@" | $BINARY > /tmp/kdb.txt 2>/dev/null
+}
 
-CMDS="CREATE DATABASE testdb;
-USE testdb;
-CREATE TABLE users (id INT, name TEXT);"
+run_crash() {
+    DELAY=$1
+    shift
 
-for i in $(seq 1 10); do
-    CMDS="$CMDS
-INSERT INTO users VALUES ($i, 'user$i');"
-done
+    printf "%s\n" "$@" | $BINARY > /tmp/kdb.txt 2>/dev/null &
+    PID=$!
+    sleep "$DELAY"
+    kill -9 $PID 2>/dev/null
+    wait $PID 2>/dev/null
+}
 
-CMDS="$CMDS
-.exit"
+pass() { echo "[✔ PASS] $1"; PASS=$((PASS+1)); }
+fail() { echo "[❌ FAIL] $1"; FAIL=$((FAIL+1)); }
 
-START=$(date +%s%3N)
+echo "========================================"
+echo "  WAL STRICT TEST SUITE"
+echo "========================================"
 
-echo "$CMDS" | ./kerneldb > /dev/null
+# -------------------------------
+# TEST 1: UNCOMMITTED MUST DIE
+# -------------------------------
+cleanup
 
-END=$(date +%s%3N)
+run_clean "USE testdb" "CREATE TABLE t (id INT, val TEXT)" "EXIT"
 
-echo "Inserted 100 rows in $((END-START)) ms"
+run_crash 0.5 "USE testdb" "BEGIN" "INSERT INTO t VALUES (1, ghost)"
 
-# -----------------------------
-# Step 2: Crash BEFORE commit
-# -----------------------------
-echo ""
-echo "--- Step 2: Crash BEFORE COMMIT ---"
+run_clean "USE testdb" "SELECT * FROM t" "EXIT"
+RES=$(cat /tmp/kdb.txt)
 
-echo "
-USE testdb;
-BEGIN;
-INSERT INTO users VALUES (101, 'crash_before');
-" | ./kerneldb &
+if echo "$RES" | grep -q "ghost"; then
+    fail "Uncommitted row survived"
+else
+    pass "Uncommitted row removed"
+fi
 
-PID=$!
-sleep 1
-kill -9 $PID 2>/dev/null
+# -------------------------------
+# TEST 2: COMMITTED MUST SURVIVE
+# -------------------------------
+cleanup
 
-echo "Process killed (before commit)"
+run_clean "USE testdb" "CREATE TABLE t (id INT, val TEXT)" "EXIT"
 
-# -----------------------------
-# Step 3: Recovery check
-# -----------------------------
-echo ""
-echo "--- Step 3: Recovery check (should NOT include 101) ---"
+run_crash 0.8 "USE testdb" "BEGIN" "INSERT INTO t VALUES (2, survive)" "COMMIT"
 
-echo "
-USE testdb;
-SELECT * FROM users;
-.exit
-" | ./kerneldb
+run_clean "USE testdb" "SELECT * FROM t" "EXIT"
+RES=$(cat /tmp/kdb.txt)
 
-# -----------------------------
-# Step 4: Crash AFTER commit
-# -----------------------------
-echo ""
-echo "--- Step 4: Crash AFTER COMMIT ---"
+if echo "$RES" | grep -q "survive"; then
+    pass "Committed row recovered"
+else
+    fail "Committed row missing"
+fi
 
-echo "
-USE testdb;
-BEGIN;
-INSERT INTO users VALUES (102, 'crash_after');
-COMMIT;
-" | ./kerneldb &
+# -------------------------------
+# TEST 3: NO DUPLICATES
+# -------------------------------
+cleanup
 
-PID=$!
-sleep 1
-kill -9 $PID 2>/dev/null
+run_clean "USE testdb" "CREATE TABLE t (id INT, val TEXT)" "EXIT"
 
-echo "Process killed (after commit)"
+run_crash 0.8 "USE testdb" "BEGIN" "INSERT INTO t VALUES (5, dup)" "COMMIT"
 
-# -----------------------------
-# Step 5: Final recovery
-# -----------------------------
-echo ""
-echo "--- Step 5: Final recovery (should include 102) ---"
+run_clean "USE testdb" "SELECT * FROM t" "EXIT"
+COUNT=$(grep -c "dup" /tmp/kdb.txt)
 
-echo "
-USE testdb;
-SELECT * FROM users;
-.exit
-" | ./kerneldb
+if [ "$COUNT" -eq 1 ]; then
+    pass "No duplicate after recovery"
+else
+    fail "Duplicate rows detected ($COUNT)"
+fi
 
-echo ""
-echo "=== Test Complete ==="
+# -------------------------------
+# SUMMARY
+# -------------------------------
+echo "========================================"
+echo "PASS: $PASS | FAIL: $FAIL"

@@ -1,0 +1,304 @@
+  [wal] opened — next_lsn=72 next_txn=25
+
+  [wal] Starting recovery...
+  [wal] Found 77 records, 25 committed transactions
+  [wal] REDO lsn=2    txn=1   INSERT  table=users data=300|crash_300
+  [wal] REDO lsn=5    txn=2   INSERT  table=users data=301|crash_301
+  [wal] REDO lsn=8    txn=3   INSERT  table=users data=302|crash_302
+  [wal] REDO lsn=11   txn=4   INSERT  table=users data=303|crash_303
+  [wal] REDO lsn=14   txn=5   INSERT  table=users data=304|crash_304
+  [wal] REDO lsn=17   txn=6   INSERT  table=users data=305|crash_305
+  [wal] REDO lsn=20   txn=7   INSERT  table=users data=306|crash_306
+  [wal] REDO lsn=23   txn=8   INSERT  table=users data=307|crash_307
+  [wal] REDO lsn=26   txn=9   INSERT  table=users data=308|crash_308
+  [wal] REDO lsn=29   txn=10  INSERT  table=users data=309|crash_309
+  [wal] REDO lsn=32   txn=11  INSERT  table=users data=310|crash_310
+  [wal] REDO lsn=35   txn=12  INSERT  table=users data=311|crash_311
+  [wal] REDO lsn=38   txn=13  INSERT  table=users data=312|crash_312
+  [wal] REDO lsn=41   txn=14  INSERT  table=users data=313|crash_313
+  [wal] REDO lsn=44   txn=15  INSERT  table=users data=314|crash_314
+  [wal] REDO lsn=47   txn=16  INSERT  table=users data=315|crash_315
+  [wal] REDO lsn=50   txn=17  INSERT  table=users data=316|crash_316
+  [wal] REDO lsn=53   txn=18  INSERT  table=users data=317|crash_317
+  [wal] REDO lsn=56   txn=19  INSERT  table=users data=318|crash_318
+  [wal] REDO lsn=59   txn=20  INSERT  table=users data=319|crash_319
+  [wal] REDO lsn=62   txn=21  INSERT  table=users data=320|crash_320
+  [wal] REDO lsn=65   txn=22  INSERT  table=users data=321|crash_321
+  [wal] REDO lsn=68   txn=23  INSERT  table=users data=322|crash_322
+  [wal] REDO lsn=71   txn=24  INSERT  table=users data=323|crash_323
+  [wal] REDO lsn=74   txn=25  INSERT  table=users data=324|crash_324
+  [wal] UNDO lsn=77   txn=26  (incomplete — skipped)
+
+  [wal] Recovery complete — 25 redone, 1 skipped
+
+  [wal] Checkpoint — WAL truncated after recovery
+
+
+  kerneldb v0.1 — Embedded DB Engine
+KernelDB> 
+  id              name            
+  --------------------------------
+  1               Updated         
+  1               Updated         
+  10              Persist         
+  10              Persist         
+  100             bulk_100        
+  101             bulk_101        
+  102             bulk_102        
+  103             bulk_103        
+  104             bulk_104        
+  105             bulk_105        
+  106             bulk_106        
+  107             bulk_107        
+  108             bulk_108        
+  109             bulk_109        
+  110             bulk_110        
+  111             bulk_111        
+  112             bulk_112        
+  113             bulk_113        
+  114             bulk_114        
+  115             bulk_115        
+  116             bulk_116        
+  117             bulk_117        
+  118             bulk_118        
+  119             bulk_119        
+  120             bulk_120        
+  121             bulk_121        
+  122             bulk_122        
+  123             bulk_123        
+  124             bulk_124        
+  125             bulk_125        
+  126             bulk_126        
+  127             bulk_127        
+  128             bulk_128        
+  129             bulk_129        
+  130             bulk_130        
+  131             bulk_131        
+  132             bulk_132        
+  133             bulk_133        
+  134             bulk_134        
+  135             bulk_135        
+  136             bulk_136        
+  137             bulk_137        
+  138             bulk_138        
+  139             bulk_139        
+  140             bulk_140        
+  141             bulk_141        
+  142             bulk_142        
+  143             bulk_143        
+  144             bulk_144        
+  145             bulk_145        
+  146             bulk_146        
+  147             bulk_147        
+  148             bulk_148        
+  149             bulk_149        
+  150             bulk_150        
+  151             bulk_151        
+  152             bulk_152        
+  153             bulk_153        
+  154             bulk_154        
+  155             bulk_155        
+  156             bulk_156        
+  157             bulk_157        
+  158             bulk_158        
+  159             bulk_159        
+  160             bulk_160        
+  161             bulk_161        
+  162             bulk_162        
+  163             bulk_163        
+  164             bulk_164        
+  165             bulk_165        
+  166             bulk_166        
+  167             bulk_167        
+  168             bulk_168        
+  169             bulk_169        
+  170             bulk_170        
+  171             bulk_171        
+  172             bulk_172        
+  173             bulk_173        
+  174             bulk_174        
+  175             bulk_175        
+  176             bulk_176        
+  177             bulk_177        
+  178             bulk_178        
+  179             bulk_179        
+  180             bulk_180        
+  181             bulk_181        
+  182             bulk_182        
+  183             bulk_183        
+  184             bulk_184        
+  185             bulk_185        
+  186             bulk_186        
+  187             bulk_187        
+  188             bulk_188        
+  189             bulk_189        
+  190             bulk_190        
+  191             bulk_191        
+  192             bulk_192        
+  193             bulk_193        
+  194             bulk_194        
+  195             bulk_195        
+  196             bulk_196        
+  197             bulk_197        
+  198             bulk_198        
+  199             bulk_199        
+  200             bulk_200        
+  100             bulk_100        
+  101             bulk_101        
+  102             bulk_102        
+  103             bulk_103        
+  104             bulk_104        
+  105             bulk_105        
+  106             bulk_106        
+  107             bulk_107        
+  108             bulk_108        
+  109             bulk_109        
+  110             bulk_110        
+  111             bulk_111        
+  112             bulk_112        
+  113             bulk_113        
+  114             bulk_114        
+  115             bulk_115        
+  116             bulk_116        
+  117             bulk_117        
+  118             bulk_118        
+  119             bulk_119        
+  120             bulk_120        
+  121             bulk_121        
+  122             bulk_122        
+  123             bulk_123        
+  124             bulk_124        
+  125             bulk_125        
+  126             bulk_126        
+  127             bulk_127        
+  128             bulk_128        
+  129             bulk_129        
+  130             bulk_130        
+  131             bulk_131        
+  132             bulk_132        
+  133             bulk_133        
+  134             bulk_134        
+  135             bulk_135        
+  136             bulk_136        
+  137             bulk_137        
+  138             bulk_138        
+  139             bulk_139        
+  140             bulk_140        
+  141             bulk_141        
+  142             bulk_142        
+  143             bulk_143        
+  144             bulk_144        
+  145             bulk_145        
+  146             bulk_146        
+  147             bulk_147        
+  148             bulk_148        
+  149             bulk_149        
+  150             bulk_150        
+  151             bulk_151        
+  152             bulk_152        
+  153             bulk_153        
+  154             bulk_154        
+  155             bulk_155        
+  156             bulk_156        
+  157             bulk_157        
+  158             bulk_158        
+  159             bulk_159        
+  160             bulk_160        
+  161             bulk_161        
+  162             bulk_162        
+  163             bulk_163        
+  164             bulk_164        
+  165             bulk_165        
+  166             bulk_166        
+  167             bulk_167        
+  168             bulk_168        
+  169             bulk_169        
+  170             bulk_170        
+  171             bulk_171        
+  172             bulk_172        
+  173             bulk_173        
+  174             bulk_174        
+  175             bulk_175        
+  176             bulk_176        
+  177             bulk_177        
+  178             bulk_178        
+  179             bulk_179        
+  180             bulk_180        
+  181             bulk_181        
+  182             bulk_182        
+  183             bulk_183        
+  184             bulk_184        
+  185             bulk_185        
+  186             bulk_186        
+  187             bulk_187        
+  188             bulk_188        
+  189             bulk_189        
+  190             bulk_190        
+  191             bulk_191        
+  192             bulk_192        
+  193             bulk_193        
+  194             bulk_194        
+  195             bulk_195        
+  196             bulk_196        
+  197             bulk_197        
+  198             bulk_198        
+  199             bulk_199        
+  200             bulk_200        
+  300             crash_300       
+  301             crash_301       
+  302             crash_302       
+  303             crash_303       
+  304             crash_304       
+  305             crash_305       
+  306             crash_306       
+  307             crash_307       
+  308             crash_308       
+  309             crash_309       
+  310             crash_310       
+  311             crash_311       
+  312             crash_312       
+  313             crash_313       
+  314             crash_314       
+  315             crash_315       
+  316             crash_316       
+  317             crash_317       
+  318             crash_318       
+  319             crash_319       
+  320             crash_320       
+  321             crash_321       
+  322             crash_322       
+  323             crash_323       
+  324             crash_324       
+  325             crash_325       
+  300             crash_300       
+  301             crash_301       
+  302             crash_302       
+  303             crash_303       
+  304             crash_304       
+  305             crash_305       
+  306             crash_306       
+  307             crash_307       
+  308             crash_308       
+  309             crash_309       
+  335             crash_335       
+  311             crash_311       
+  336             crash_336       
+  312             crash_312       
+  337             crash_337       
+  313             crash_313       
+  314             crash_314       
+  315             crash_315       
+  316             crash_316       
+  317             crash_317       
+  318             crash_318       
+  319             crash_319       
+  320             crash_320       
+  321             crash_321       
+  322             crash_322       
+  323             crash_323       
+  324             crash_324       
+
+  259 row(s) found  [full scan]
+
+KernelDB> 
+Bye.

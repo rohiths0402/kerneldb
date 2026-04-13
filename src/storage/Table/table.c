@@ -233,6 +233,26 @@ void table_close(Table *table) {
     free(table);
 }
 
+void table_flush(Table *table) {
+    if (!table) return;
+
+    for (uint32_t pid = 0; pid < table->page_count; pid++) {
+        BufferFrame *frame = buf_pin(&table->pool, pid);
+        if (!frame) continue;
+
+        rwlock_write_lock(&frame->lock);
+
+        if (frame->dirty) {
+            page_write_disk(frame->page, table->fd);
+            buf_mark_clean(frame);
+        }
+
+        rwlock_write_unlock(&frame->lock);
+
+        buf_unpin(frame);
+    }
+}
+
 TableResult table_drop(const char *name) {
     if (!table_exists(name)) return TABLE_NOT_FOUND;
     char path[256];

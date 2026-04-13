@@ -14,13 +14,32 @@ typedef enum {
     WAL_COMMIT = 5
 } WALRecordType;
 
+// typedef struct {
+//     uint64_t lsn;
+//     uint32_t txn_id;    
+//     uint32_t page_id;    
+//     uint8_t  type;
+//     uint16_t before_len;
+//     uint16_t after_len;
+//     uint8_t  before[WAL_MAX_DATA];
+//     uint8_t  after[WAL_MAX_DATA];
+//     uint32_t checksum;
+// } WALRecord;
+
 typedef struct {
     uint64_t lsn;
     uint32_t txn_id;
+
+    uint32_t page_id;   // NEW (future use)
+
     uint8_t  type;
-    char table[WAL_TABLE_LEN];
-    uint8_t  data[WAL_MAX_DATA];
+
+    char table[WAL_TABLE_LEN];   // ✅ KEEP (for now)
+
     uint16_t data_len;
+
+    uint8_t  data[WAL_MAX_DATA]; // ✅ KEEP (for now)
+
     uint32_t checksum;
 } WALRecord;
 

@@ -10,6 +10,7 @@ typedef struct {
     Page *page;
     uint32_t page_id;
     int dirty;
+    int pin_count;
     uint64_t lru_rank;
     RWLock  lock; 
 } BufferFrame;
@@ -29,15 +30,11 @@ typedef enum {
 void buf_init(BufferPool *pool, int table_fd);
 
 void buf_destroy(BufferPool *pool);
-
+void buf_mark_clean(BufferFrame *frame);
+void buf_unpin(BufferFrame *frame);
 BufferFrame *buf_pin(BufferPool *pool, uint32_t page_id);
-
 void buf_mark_dirty(BufferFrame *frame);
-
 BufResult buf_flush_all(BufferPool *pool);
-
 BufferFrame *buf_new_page(BufferPool *pool, uint32_t page_id);
-
 void buf_print(const BufferPool *pool);
-
 #endif

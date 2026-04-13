@@ -34,6 +34,7 @@ void table_subsystem_init(void);
 TableResult table_create(const Intent *intent);
 Table *table_open(const char *name);
 void table_close(Table *table);
+void table_flush(Table *table);
 TableResult table_drop(const char *name);
 TableResult table_insert(Table *table, const Intent *intent);
 TableResult table_insert_raw(Table *table, const uint8_t *row_buf, uint16_t row_len);

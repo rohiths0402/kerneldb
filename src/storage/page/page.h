@@ -16,6 +16,7 @@ typedef struct {
 
 typedef struct {
     uint32_t page_id;
+    uint64_t page_lsn;
     uint16_t slot_count;
     uint16_t free_start;
     uint16_t free_end;

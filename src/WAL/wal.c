@@ -54,14 +54,17 @@ static WALResult read_record(int fd, WALRecord *rec) {
 }
 
 static void redo_insert(const WALRecord *rec) {
-//    strcpy(current_db, "testdb");
-   Table *table =table_open(rec->table);
-   if (!table) {
-       fprintf(stderr, "  [wal] REDO failed — table not found: %s\n", rec->table);
-       return;
-   }
-   table_insert_raw(table, rec->data, rec->data_len);
-   table_close(table);  
+   Table *table = table_open(rec->table);
+    if (!table) {
+        printf("  [wal] REDO failed — table not found: %s\n", rec->table);
+        return;
+    }
+    char buf[WAL_MAX_DATA + 1];
+    memcpy(buf, rec->data, rec->data_len);
+    buf[rec->data_len] = '\0';
+    table_insert_raw(table, (uint8_t *)buf, rec->data_len);
+    table_flush(table);
+    table_close(table);
 }
 
 WAL *wal_open(void) {
@@ -129,8 +132,16 @@ WALResult wal_write(WAL *wal, uint32_t txn_id, WALRecordType type, const char *t
         uint16_t copy_len = data_len < WAL_MAX_DATA ? data_len : WAL_MAX_DATA;
         memcpy(rec.data, data, copy_len);
     }
+    WALResult res = write_record(wal->fd, &rec);
+    if (res != WAL_OK){
+        return res;
+    }
+    if (fsync(wal->fd) < 0) {  
+        fprintf(stderr, "  [wal] fsync failed: %s\n", strerror(errno));
+        return WAL_ERROR;
+    }
 
-    return write_record(wal->fd, &rec);
+    return WAL_OK;
 }
 
 WALResult wal_commit(WAL *wal, uint32_t txn_id) {

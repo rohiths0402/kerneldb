@@ -1,0 +1,15 @@
+  [wal] opened — next_lsn=1 next_txn=1
+
+  [wal] Starting recovery...
+  [wal] No records found — clean start
+
+
+  kerneldb v0.1 — Embedded DB Engine
+KernelDB> 
+  id              name            mark            
+  ------------------------------------------------
+
+  0 row(s) found  [full scan]
+
+KernelDB> 
+Bye.
