@@ -15,10 +15,6 @@
 #include "../common/intent.h"
 #include "../dispatcher/dispatcher.h"
 
-// #define CATALOG_FILE  "data/catalog.db"
-
-// char current_db[64] = "default";
-
 extern char current_db[64];
 extern WAL *g_wal;
 
@@ -45,27 +41,28 @@ static void catalog_add(const char *name) {
 
 static void catalog_remove(const char *name) {
     char path[256];
-    catalog_path(path, sizeof(path));
-
-    FILE *f = fopen(path, "r");
-    if (!f) return;
-
     char tmp_path[256];
-    snprintf(tmp_path, sizeof(tmp_path), "data/%s/catalog.tmp", current_db);
-
-    FILE *tmp = fopen(tmp_path, "w");
-    if (!tmp) { fclose(f); return; }
-
     char line[MAX_TABLE_NAME];
+    catalog_path(path, sizeof(path));
+    FILE *f = fopen(path, "r");
+    if (!f){
+        return;
+    }
+    snprintf(tmp_path, sizeof(tmp_path), "data/%s/catalog.tmp", current_db);
+    FILE *tmp = fopen(tmp_path, "w");
+    if (!tmp) { 
+        fclose(f); 
+        return;
+    }
+    
     while (fgets(line, sizeof(line), f)) {
         line[strcspn(line, "\n")] = 0;
-        if (strcmp(line, name) != 0)
+        if (strcmp(line, name) != 0){
             fprintf(tmp, "%s\n", line);
+        }
     }
-
     fclose(f);
     fclose(tmp);
-
     rename(tmp_path, path);
 }
 
@@ -73,10 +70,13 @@ static int save_schema(const char *name, const ColumnDef *cols, int count) {
     char path[256];
     schema_path(name, path, sizeof(path));
     FILE *f = fopen(path, "w");
-    if (!f) return -1;
+    if (!f){
+        return -1;
+    }
     fprintf(f, "%d\n", count);
-    for (int i = 0; i < count; i++)
+    for (int i = 0; i < count; i++){
         fprintf(f, "%s %s\n", cols[i].name, cols[i].type);
+    }
     fclose(f);
     return 0;
 }
@@ -85,10 +85,13 @@ static int load_schema(const char *name, ColumnDef *cols, int *count) {
     char path[256];
     schema_path(name, path, sizeof(path));
     FILE *f = fopen(path, "r");
-    if (!f) return -1;
+    if (!f){
+        return -1;
+    }
     fscanf(f, "%d\n", count);
-    for (int i = 0; i < *count; i++)
+    for (int i = 0; i < *count; i++){
         fscanf(f, "%63s %63s\n", cols[i].name, cols[i].type);
+    }
     fclose(f);
     return 0;
 }
@@ -98,14 +101,18 @@ static uint16_t serialise_row(const Intent *intent, uint8_t *buf, uint16_t bufsi
     for (int i = 0; i < intent->value_count; i++) {
         int w = snprintf((char *)buf + pos, bufsize - pos, "%s", intent->values[i]);
         pos += w;
-        if (i < intent->value_count - 1 && pos < bufsize - 1)
+        if (i < intent->value_count - 1 && pos < bufsize - 1){
             buf[pos++] = '|';
+        }
     }
     buf[pos] = '\0';
     return (uint16_t)(pos + 1);
 }
 
 static int row_matches_where(const uint8_t *row_data, const Intent *intent, const Table *table) {
+
+    char tmp[MAX_VALUE_LEN * MAX_COLUMNS];
+    char *tok = strtok(tmp, "|");
     if (!intent->where.active) return 1;
     int col_idx = -1;
     for (int i = 0; i < table->col_count; i++) {
@@ -113,48 +120,66 @@ static int row_matches_where(const uint8_t *row_data, const Intent *intent, cons
             col_idx = i; break;
         }
     }
-    if (col_idx < 0) return 0;
-    char tmp[MAX_VALUE_LEN * MAX_COLUMNS];
+    if (col_idx < 0){ 
+        return 0;
+    }
     strncpy(tmp, (const char *)row_data, sizeof(tmp) - 1);
-    char *tok = strtok(tmp, "|");
-    for (int i = 0; i < col_idx && tok; i++)
+    tmp[sizeof(tmp) - 1] = '\0';
+    for (int i = 0; i < col_idx && tok; i++){
         tok = strtok(NULL, "|");
-    if (!tok) return 0;
+    }
+    if (!tok){
+        return 0;
+    }
     return strcmp(tok, intent->where.value) == 0;
 }
 
 static void get_col_value(const uint8_t *row_data, int col_idx, char *out, size_t out_size) {
     char tmp[MAX_VALUE_LEN * MAX_COLUMNS];
-    strncpy(tmp, (const char *)row_data, sizeof(tmp) - 1);
     char *tok = strtok(tmp, "|");
-    for (int i = 0; i < col_idx && tok; i++)
+    strncpy(tmp, (const char *)row_data, sizeof(tmp) - 1);
+    tmp[sizeof(tmp) - 1] = '\0';
+    
+    for (int i = 0; i < col_idx && tok; i++){
         tok = strtok(NULL, "|");
-
-    if (tok)
+    }
+    if (tok){
         strncpy(out, tok, out_size - 1);
-    else
+    }
+    else{
         out[0] = '\0';
+    }
+    out[out_size - 1] = '\0';
 }
 
 static int find_index_col(const Table *table) {
     for (int i = 0; i < table->col_count; i++) {
-        if (strcmp(table->col_defs[i].type, "INT") == 0)
+        if (strcmp(table->col_defs[i].type, "INT") == 0){
             return i;
+        }
     }
     return 0;
 }
 
+static void wal_log_row(WALRecordType type, const char *table_name, const uint8_t *row, uint16_t len, uint32_t page_id)
+{
+    if (!g_wal) return;
+    uint32_t txn_id;
+    wal_begin(g_wal, &txn_id);
+    wal_write(g_wal, txn_id, type, table_name, row, len, page_id);
+    wal_commit(g_wal, txn_id);
+}
+
 void table_subsystem_init(void) {
     struct stat st;
-
-    if (stat("data", &st) != 0)
-        mkdir("data", 0755);
-
     char db_path[128];
+    if (stat("data", &st) != 0){
+        mkdir("data", 0755);
+    }
     snprintf(db_path, sizeof(db_path), "data/%s", current_db);
-
-    if (stat(db_path, &st) != 0)
+    if (stat(db_path, &st) != 0){
         mkdir(db_path, 0755);
+    }
 }
 
 int table_exists(const char *name) {
@@ -164,44 +189,63 @@ int table_exists(const char *name) {
 }
 
 TableResult table_create(const Intent *intent) {
-    if (table_exists(intent->table))
+
+    if (table_exists(intent->table)) {
         return TABLE_ALREADY_EXISTS;
-    char path[256];
+    }
+    char path[256] = {0};
     data_path(intent->table, path, sizeof(path));
     int fd = open(path, O_CREAT | O_RDWR, 0644);
-    if (fd < 0) { perror("table_create"); return TABLE_ERROR; }
+    if (fd < 0) {
+        perror("table_create");
+        return TABLE_ERROR;
+    }
     Page *page = page_alloc(0);
-    if (!page) { close(fd); return TABLE_ERROR; }
+    if (!page) {
+        close(fd);
+        return TABLE_ERROR;
+    }
     PageResult pr = page_write_disk(page, fd);
     page_free(page);
     close(fd);
-    if (pr != PAGE_OK) return TABLE_ERROR;
-    if (save_schema(intent->table, intent->columns, intent->column_count) < 0)
+    if (pr != PAGE_OK) {
         return TABLE_ERROR;
+    }
+    if (save_schema(intent->table, intent->columns, intent->column_count) < 0) {
+        return TABLE_ERROR;
+    }
     catalog_add(intent->table);
     printf("  [table] Created \"%s\" with %d column(s)\n\n", intent->table, intent->column_count);
     return TABLE_OK;
 }
 
 Table *table_open(const char *name) {
-    if (!table_exists(name)) return NULL;
+    char path[256];
+    if (!table_exists(name)){ 
+        return NULL;
+    }
     Table *table = calloc(1, sizeof(Table));
-    if (!table) return NULL;
+    if (!table){ 
+        return NULL;
+    }
     strncpy(table->name, name, MAX_TABLE_NAME - 1);
     if (load_schema(name, table->col_defs, &table->col_count) < 0) {
-        free(table); return NULL;
+        free(table); 
+        return NULL;
     }
-    char path[256];
     data_path(name, path, sizeof(path));
     table->fd = open(path, O_RDWR);
-    if (table->fd < 0) { free(table); return NULL; }
+    if (table->fd < 0) { 
+        free(table); 
+        return NULL; 
+    }
 
     off_t size = lseek(table->fd, 0, SEEK_END);
     table->page_count = (uint32_t)(size / PAGE_SIZE);
 
     buf_init(&table->pool, table->fd);
 
-    table->index  = INDEX_create();
+    table->index = INDEX_create();
     table->index_col = find_index_col(table);
 
     uint8_t  buf[PAGE_SIZE];
@@ -210,16 +254,21 @@ Table *table_open(const char *name) {
 
     for (uint32_t pid = 0; pid < table->page_count; pid++) {
         BufferFrame *frame = buf_pin(&table->pool, pid);
-        if (!frame) continue;
+        if (!frame) {
+            continue;
+        }
         PageHeader *hdr = (PageHeader *)frame->page->data;
         for (uint16_t s = 0; s < hdr->slot_count; s++) {
-            if (page_read(frame->page, s, buf, sizeof(buf), &len) != PAGE_OK)
+            if (page_read(frame->page, s, buf, sizeof(buf), &len) != PAGE_OK){
                 continue;
+            }
             get_col_value(buf, table->index_col, key_str, sizeof(key_str));
             int key = atoi(key_str);
             RowLocation loc = { .page_id = pid, .slot_id = s };
             INDEX_insert(table->index, key, loc);
         }
+
+        buf_unpin(frame);
     }
 
     return table;
@@ -233,29 +282,31 @@ void table_close(Table *table) {
     free(table);
 }
 
-void table_flush(Table *table) {
-    if (!table) return;
 
+void table_flush(Table *table) {
+    if (!table) {
+        return;
+    }
     for (uint32_t pid = 0; pid < table->page_count; pid++) {
         BufferFrame *frame = buf_pin(&table->pool, pid);
-        if (!frame) continue;
-
+        if (!frame) {
+            continue;
+        }
         rwlock_write_lock(&frame->lock);
-
         if (frame->dirty) {
             page_write_disk(frame->page, table->fd);
             buf_mark_clean(frame);
         }
-
         rwlock_write_unlock(&frame->lock);
-
         buf_unpin(frame);
     }
 }
 
 TableResult table_drop(const char *name) {
-    if (!table_exists(name)) return TABLE_NOT_FOUND;
     char path[256];
+    if (!table_exists(name)) {
+        return TABLE_NOT_FOUND;
+    }
     data_path(name, path, sizeof(path));
     remove(path);
     schema_path(name, path, sizeof(path));
@@ -265,54 +316,56 @@ TableResult table_drop(const char *name) {
     return TABLE_OK;
 }
 
+
 TableResult table_insert(Table *table, const Intent *intent) {
     uint8_t  row_buf[PAGE_SIZE];
+    uint16_t slot_out;
+    uint32_t new_pid = table->page_count;
+    char key_str[MAX_VALUE_LEN];
     uint16_t row_len = serialise_row(intent, row_buf, sizeof(row_buf));
-
-    /* WAL: log before write — golden rule */
-    if (g_wal) {
-        uint32_t txn_id;
-        wal_begin(g_wal, &txn_id);
-        wal_write(g_wal, txn_id, WAL_INSERT, table->name, row_buf, row_len);
-        wal_commit(g_wal, txn_id);
-    }
-
     for (uint32_t pid = 0; pid < table->page_count; pid++) {
         BufferFrame *frame = buf_pin(&table->pool, pid);
-        if (!frame) continue;
-
-        uint16_t slot_out;
+        if (!frame){ 
+            continue;
+        }
         rwlock_write_lock(&frame->lock);
         PageResult pr = page_insert(frame->page, row_buf, row_len, &slot_out);
         rwlock_write_unlock(&frame->lock);
-
-        if (pr == PAGE_OK) {
-            buf_mark_dirty(frame);
-            char key_str[MAX_VALUE_LEN];
-            get_col_value(row_buf, table->index_col, key_str, sizeof(key_str));
-            RowLocation loc = { .page_id = pid, .slot_id = slot_out };
-            INDEX_insert(table->index, atoi(key_str), loc);
-            printf("  [table] Inserted into \"%s\" page=%u slot=%u\n\n", table->name, pid, slot_out);
-            return TABLE_OK;
+        if (pr != PAGE_OK) {
+            buf_unpin(frame);
+            continue;
         }
+        wal_log_row(WAL_INSERT, table->name, row_buf, row_len, pid);
+        buf_mark_dirty(frame);
+        get_col_value(row_buf, table->index_col, key_str, sizeof(key_str));
+        RowLocation loc = { .page_id = pid, .slot_id = slot_out };
+        INDEX_insert(table->index, atoi(key_str), loc);
+        buf_unpin(frame);
+        printf("  [table] Inserted into \"%s\" page=%u slot=%u\n\n", table->name, pid, slot_out);
+        return TABLE_OK;
     }
-
-    uint32_t new_pid = table->page_count;
-    BufferFrame *frame  = buf_new_page(&table->pool, new_pid);
-    if (!frame) return TABLE_ERROR;
-
-    uint16_t slot_out;
+    
+    BufferFrame *frame = buf_new_page(&table->pool, new_pid);
+    if (!frame){
+        return TABLE_ERROR;
+    }
     rwlock_write_lock(&frame->lock);
-    page_insert(frame->page, row_buf, row_len, &slot_out);
+    PageResult pr = page_insert(frame->page, row_buf, row_len, &slot_out);
     rwlock_write_unlock(&frame->lock);
 
+    if (pr != PAGE_OK) {
+        buf_unpin(frame);
+        return TABLE_ERROR;
+    }
+    wal_log_row(WAL_INSERT, table->name, row_buf, row_len, new_pid);
     buf_mark_dirty(frame);
     table->page_count++;
-
-    char key_str[MAX_VALUE_LEN];
     get_col_value(row_buf, table->index_col, key_str, sizeof(key_str));
     RowLocation loc = { .page_id = new_pid, .slot_id = slot_out };
     INDEX_insert(table->index, atoi(key_str), loc);
+
+    buf_unpin(frame);
+
     printf("  [table] Inserted into \"%s\" page=%u slot=%u (new page)\n\n", table->name, new_pid, slot_out);
     return TABLE_OK;
 }
@@ -321,43 +374,49 @@ TableResult table_insert_raw(Table *table, const uint8_t *row_buf, uint16_t row_
 
     for (uint32_t pid = 0; pid < table->page_count; pid++) {
         BufferFrame *frame = buf_pin(&table->pool, pid);
-        if (!frame) continue;
-
+        if (!frame){
+            continue;
+        }            
         uint16_t slot_out;
         rwlock_write_lock(&frame->lock);
         PageResult pr = page_insert(frame->page, row_buf, row_len, &slot_out);
         rwlock_write_unlock(&frame->lock);
 
-        if (pr == PAGE_OK) {
-            buf_mark_dirty(frame);
-
-            char key_str[MAX_VALUE_LEN];
-            get_col_value(row_buf, table->index_col, key_str, sizeof(key_str));
-            RowLocation loc = { .page_id = pid, .slot_id = slot_out };
-            INDEX_insert(table->index, atoi(key_str), loc);
-
-            return TABLE_OK;
+        if (pr != PAGE_OK) {
+            buf_unpin(frame);
+            continue;
         }
+
+        buf_mark_dirty(frame);
+
+        char key_str[MAX_VALUE_LEN];
+        get_col_value(row_buf, table->index_col, key_str, sizeof(key_str));
+        RowLocation loc = { .page_id = pid, .slot_id = slot_out };
+        INDEX_insert(table->index, atoi(key_str), loc);
+
+        buf_unpin(frame);
+        return TABLE_OK;
     }
-
-    // new page
     uint32_t new_pid = table->page_count;
-    char key_str[MAX_VALUE_LEN];
-    uint16_t slot_out;
-
     BufferFrame *frame = buf_new_page(&table->pool, new_pid);
     if (!frame){
         return TABLE_ERROR;
     }
+    uint16_t slot_out;
     rwlock_write_lock(&frame->lock);
-    page_insert(frame->page, row_buf, row_len, &slot_out);
+    PageResult pr = page_insert(frame->page, row_buf, row_len, &slot_out);
     rwlock_write_unlock(&frame->lock);
+    if (pr != PAGE_OK) {
+        buf_unpin(frame);
+        return TABLE_ERROR;
+    }
     buf_mark_dirty(frame);
     table->page_count++;
+    char key_str[MAX_VALUE_LEN];
     get_col_value(row_buf, table->index_col, key_str, sizeof(key_str));
     RowLocation loc = { .page_id = new_pid, .slot_id = slot_out };
     INDEX_insert(table->index, atoi(key_str), loc);
-
+    buf_unpin(frame);
     return TABLE_OK;
 }
 
@@ -365,59 +424,72 @@ void table_scan(Table *table, const Intent *intent) {
     uint8_t  buf[PAGE_SIZE];
     uint16_t len;
     int found = 0;
-
     printf("\n  ");
-    for (int c = 0; c < table->col_count; c++)
+    for (int c = 0; c < table->col_count; c++){
         printf("%-16s", table->col_defs[c].name);
+    }
     printf("\n  ");
-    for (int c = 0; c < table->col_count; c++)
+    for (int c = 0; c < table->col_count; c++){
         printf("%-16s", "----------------");
+    }
     printf("\n");
-
     if (intent->where.active && strcmp(table->col_defs[table->index_col].name, intent->where.column) == 0) {
         int key = atoi(intent->where.value);
         RowLocation loc;
-
         if (INDEX_search(table->index, key, &loc) == INDEX_OK) {
             BufferFrame *frame = buf_pin(&table->pool, loc.page_id);
             if (frame) {
                 rwlock_read_lock(&frame->lock);
                 PageResult pr = page_read(frame->page, loc.slot_id, buf, sizeof(buf), &len);
                 rwlock_read_unlock(&frame->lock);
+
                 if (pr == PAGE_OK) {
                     char tmp[PAGE_SIZE];
                     strncpy(tmp, (char *)buf, sizeof(tmp) - 1);
+                    tmp[sizeof(tmp) - 1] = '\0';
                     printf("  ");
                     char *tok = strtok(tmp, "|");
                     while (tok) { printf("%-16s", tok); tok = strtok(NULL, "|"); }
                     printf("\n");
                     found++;
                 }
+
+                buf_unpin(frame);
             }
         }
         printf("\n  %d row(s) found  [index lookup]\n\n", found);
         return;
     }
-
     for (uint32_t pid = 0; pid < table->page_count; pid++) {
         BufferFrame *frame = buf_pin(&table->pool, pid);
-        if (!frame) continue;
+        if (!frame){
+            continue;
+        }
         PageHeader *hdr = (PageHeader *)frame->page->data;
         for (uint16_t s = 0; s < hdr->slot_count; s++) {
             rwlock_read_lock(&frame->lock);
             PageResult pr = page_read(frame->page, s, buf, sizeof(buf), &len);
             rwlock_read_unlock(&frame->lock);
-            if (pr != PAGE_OK) continue;
-            if (!row_matches_where(buf, intent, table)) continue;
+
+            if (pr != PAGE_OK){ 
+                continue;
+            }
+            if (!row_matches_where(buf, intent, table)) {
+                continue;
+            }
             char tmp[PAGE_SIZE];
             strncpy(tmp, (char *)buf, sizeof(tmp) - 1);
-            printf("  ");
+            tmp[sizeof(tmp) - 1] = '\0';
+            // printf("  ");
             char *tok = strtok(tmp, "|");
             while (tok) { printf("%-16s", tok); tok = strtok(NULL, "|"); }
             printf("\n");
             found++;
         }
+
+        buf_unpin(frame);
     }
+
     printf("\n  %d row(s) found  [full scan]\n\n", found);
 }
 
@@ -425,35 +497,44 @@ TableResult table_delete(Table *table, const Intent *intent) {
     uint8_t  buf[PAGE_SIZE];
     uint16_t len;
     int deleted = 0;
+
     for (uint32_t pid = 0; pid < table->page_count; pid++) {
         BufferFrame *frame = buf_pin(&table->pool, pid);
-        if (!frame) continue;
+        if (!frame) {
+            continue;
+        }
         PageHeader *hdr = (PageHeader *)frame->page->data;
         uint16_t original_count = hdr->slot_count;
         for (uint16_t s = 0; s < original_count; s++) {
             rwlock_read_lock(&frame->lock);
             PageResult pr = page_read(frame->page, s, buf, sizeof(buf), &len);
             rwlock_read_unlock(&frame->lock);
-            if (pr != PAGE_OK) continue;
-            if (!row_matches_where(buf, intent, table)) continue;
-
-            /* WAL: log before delete */
-            if (g_wal) {
-                uint32_t txn_id;
-                wal_begin(g_wal, &txn_id);
-                wal_write(g_wal, txn_id, WAL_DELETE, table->name, buf, len);
-                wal_commit(g_wal, txn_id);
+            if (pr != PAGE_OK) {
+                continue;
             }
+            if (!row_matches_where(buf, intent, table)) {
+                continue;
+            }
+            wal_log_row(WAL_DELETE, table->name, buf, len, pid);
+            rwlock_write_lock(&frame->lock);
+            PageResult del_pr = page_delete(frame->page, s);
+            rwlock_write_unlock(&frame->lock);
+
+            if (del_pr != PAGE_OK) {
+                continue;
+            }
+
+            buf_mark_dirty(frame);
             char key_str[MAX_VALUE_LEN];
             get_col_value(buf, table->index_col, key_str, sizeof(key_str));
             INDEX_delete(table->index, atoi(key_str));
-            rwlock_write_lock(&frame->lock);
-            page_delete(frame->page, s);
-            rwlock_write_unlock(&frame->lock);
-            buf_mark_dirty(frame);
+
             deleted++;
         }
+
+        buf_unpin(frame);
     }
+
     printf("  [table] Deleted %d row(s) from \"%s\"\n\n", deleted, table->name);
     return TABLE_OK;
 }
@@ -465,60 +546,73 @@ TableResult table_update(Table *table, const Intent *intent) {
 
     for (uint32_t pid = 0; pid < table->page_count; pid++) {
         BufferFrame *frame = buf_pin(&table->pool, pid);
-        if (!frame) continue;
+        if (!frame) {
+            continue;
+        }
         PageHeader *hdr = (PageHeader *)frame->page->data;
         uint16_t original_count = hdr->slot_count;
+
         for (uint16_t s = 0; s < original_count; s++) {
             rwlock_read_lock(&frame->lock);
             PageResult pr = page_read(frame->page, s, buf, sizeof(buf), &len);
             rwlock_read_unlock(&frame->lock);
-            if (pr != PAGE_OK) continue;
-            if (!row_matches_where(buf, intent, table)) continue;
-
+            if (pr != PAGE_OK){
+                continue;
+            }
+            if (!row_matches_where(buf, intent, table)){
+                continue;
+            }
             int col_idx = -1;
             for (int c = 0; c < table->col_count; c++) {
                 if (strcmp(table->col_defs[c].name, intent->set.column) == 0) {
                     col_idx = c; break;
                 }
             }
-            if (col_idx < 0) continue;
-
-            char old_key_str[MAX_VALUE_LEN];
-            get_col_value(buf, table->index_col, old_key_str, sizeof(old_key_str));
-            INDEX_delete(table->index, atoi(old_key_str));
+            if (col_idx < 0){ 
+                continue;
+            }
             char tmp[PAGE_SIZE];
             strncpy(tmp, (char *)buf, sizeof(tmp) - 1);
+            tmp[sizeof(tmp) - 1] = '\0';
             char new_row[PAGE_SIZE];
             int pos = 0;
             char *tok = strtok(tmp, "|");
             int ci  = 0;
             while (tok) {
-                if (ci > 0) new_row[pos++] = '|';
+                if (ci > 0){ 
+                    new_row[pos++] = '|';
+                }
                 const char *val = (ci == col_idx) ? intent->set.value : tok;
                 pos += snprintf(new_row + pos, sizeof(new_row) - pos, "%s", val);
                 tok = strtok(NULL, "|");
                 ci++;
             }
             new_row[pos++] = '\0';
-            if (g_wal) {
-                uint32_t txn_id;
-                wal_begin(g_wal, &txn_id);
-                wal_write(g_wal, txn_id, WAL_UPDATE, table->name, (uint8_t *)new_row, (uint16_t)pos);
-                wal_commit(g_wal, txn_id);
-            }
-
+            wal_log_row(WAL_UPDATE, table->name, (uint8_t *)new_row, (uint16_t)pos, pid);
             rwlock_write_lock(&frame->lock);
-            page_delete(frame->page, s);
-            uint16_t new_slot;
-            page_insert(frame->page, (uint8_t *)new_row, (uint16_t)pos, &new_slot);
+            PageResult del_pr = page_delete(frame->page, s);
+            uint16_t new_slot = 0;
+            PageResult ins_pr  = PAGE_ERROR;
+            if (del_pr == PAGE_OK){
+                ins_pr = page_insert(frame->page, (uint8_t *)new_row,(uint16_t)pos, &new_slot);
+            }
             rwlock_write_unlock(&frame->lock);
+            if (del_pr != PAGE_OK || ins_pr != PAGE_OK) {
+
+                continue;
+            }
             buf_mark_dirty(frame);
+            char old_key_str[MAX_VALUE_LEN];
+            get_col_value(buf, table->index_col, old_key_str, sizeof(old_key_str));
+            INDEX_delete(table->index, atoi(old_key_str));
             char new_key_str[MAX_VALUE_LEN];
             get_col_value((uint8_t *)new_row, table->index_col, new_key_str, sizeof(new_key_str));
             RowLocation loc2 = { .page_id = pid, .slot_id = new_slot };
             INDEX_insert(table->index, atoi(new_key_str), loc2);
+
             updated++;
         }
+        buf_unpin(frame); 
     }
     printf("  [table] Updated %d row(s) in \"%s\"\n\n", updated, table->name);
     return TABLE_OK;

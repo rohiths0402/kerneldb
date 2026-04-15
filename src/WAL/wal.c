@@ -115,7 +115,7 @@ WALResult wal_begin(WAL *wal, uint32_t *txn_id) {
     return write_record(wal->fd, &rec);
 }
 
-WALResult wal_write(WAL *wal, uint32_t txn_id, WALRecordType type, const char *table, const uint8_t *data, uint16_t data_len) {
+WALResult wal_write(WAL *wal, uint32_t txn_id, WALRecordType type, const char *table, const uint8_t *data, uint16_t data_len, uint32_t page_id) {
     if (!wal){
         return WAL_ERROR;
     }
@@ -125,7 +125,7 @@ WALResult wal_write(WAL *wal, uint32_t txn_id, WALRecordType type, const char *t
     rec.txn_id = txn_id;
     rec.type = (uint8_t)type;
     rec.data_len = data_len;
-
+    rec.page_id = page_id; 
     strncpy(rec.table, table, WAL_TABLE_LEN - 1);
 
     if (data && data_len > 0) {

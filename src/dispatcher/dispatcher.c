@@ -148,11 +148,11 @@ static ExecResult handle_sql(Command *cmd) {
             }
             char buffer[WAL_MAX_DATA];
             int written = snprintf(buffer, sizeof(buffer), "%s|%s", intent.values[0], intent.values[1]);
-            if (written < 0 || written >= sizeof(buffer)) {
+            if (written < 0 || (size_t)written >= sizeof(buffer)) {
                 printf("  [error] Data too long for WAL.\n\n");
                 return EXEC_ERROR;
             }
-            wal_write(g_wal, txn, WAL_INSERT, intent.table, (uint8_t *)buffer, written);
+            wal_write(g_wal, txn, WAL_INSERT, intent.table, (uint8_t *)buffer, written, 0);
             Table *table = table_open(intent.table);
             if (!table) {
                 printf("  [error] Table not found: %s\n\n", intent.table);

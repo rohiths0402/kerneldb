@@ -14,32 +14,14 @@ typedef enum {
     WAL_COMMIT = 5
 } WALRecordType;
 
-// typedef struct {
-//     uint64_t lsn;
-//     uint32_t txn_id;    
-//     uint32_t page_id;    
-//     uint8_t  type;
-//     uint16_t before_len;
-//     uint16_t after_len;
-//     uint8_t  before[WAL_MAX_DATA];
-//     uint8_t  after[WAL_MAX_DATA];
-//     uint32_t checksum;
-// } WALRecord;
-
 typedef struct {
     uint64_t lsn;
     uint32_t txn_id;
-
-    uint32_t page_id;   // NEW (future use)
-
+    uint32_t page_id;
     uint8_t  type;
-
-    char table[WAL_TABLE_LEN];   // ✅ KEEP (for now)
-
+    char table[WAL_TABLE_LEN];
     uint16_t data_len;
-
-    uint8_t  data[WAL_MAX_DATA]; // ✅ KEEP (for now)
-
+    uint8_t  data[WAL_MAX_DATA];
     uint32_t checksum;
 } WALRecord;
 
@@ -58,7 +40,7 @@ typedef enum {
 WAL *wal_open(void);
 void wal_close(WAL *wal);
 WALResult wal_begin(WAL *wal, uint32_t *txn_id);
-WALResult wal_write(WAL *wal, uint32_t txn_id, WALRecordType type, const char *table, const uint8_t *data, uint16_t data_len);
+WALResult wal_write(WAL *wal, uint32_t txn_id, WALRecordType type, const char *table, const uint8_t *data, uint16_t data_len, uint32_t page_id );
 WALResult wal_commit(WAL *wal, uint32_t txn_id);
 WALResult wal_recover(WAL *wal);
 void wal_print(WAL *wal);
